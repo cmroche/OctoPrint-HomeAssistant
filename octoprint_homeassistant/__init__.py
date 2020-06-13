@@ -4,12 +4,13 @@ from __future__ import absolute_import
 import octoprint.plugin
 from octoprint.server import user_permission
 from octoprint.events import eventManager, Events
-from octoprint.util import RepeatedTimer
+from octoprint.settings import settings
 import threading
 import time
 import os
 import re
 import logging
+import json
 
 ### (Don't forget to remove me)
 # This is a basic skeleton for your plugin's __init__.py. You probably want to adjust the class name of your plugin
@@ -21,16 +22,28 @@ import logging
 
 import octoprint.plugin
 
-class Octoprint-homeassistantPlugin(octoprint.plugin.SettingsPlugin,
-                                    octoprint.plugin.AssetPlugin,
-                                    octoprint.plugin.TemplatePlugin):
+SETTINGS_DEFAULTS = dict(unique_id=None)
+MQTT_DEFAULTS = dict(
+	publish=dict(
+		baseTopic="octoPrint/",
+		eventTopic="event/{event}",
+		progressTopic="progress/{progress}",
+		temperatureTopic="temperature/{temp}",
+		lwTopic="mqtt"
+	)
+)
 
-	##~~ SettingsPlugin mixin
+
+class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
+						  octoprint.plugin.AssetPlugin,
+						  octoprint.plugin.TemplatePlugin,
+						  octoprint.plugin.StartupPlugin,
+						  octoprint.plugin.WizardPlugin):
+
+	##~~ SettingsPlugin
 
 	def get_settings_defaults(self):
-		return dict(
-			# put your plugin's default settings here
-		)
+		return SETTINGS_DEFAULTS
 
 	##~~ AssetPlugin mixin
 
@@ -43,6 +56,144 @@ class Octoprint-homeassistantPlugin(octoprint.plugin.SettingsPlugin,
 			less=["less/OctoPrint-HomeAssistant.less"]
 		)
 
+	##~~ StartupPlugin mixin
+
+	def on_after_startup(self):
+		if self._settings.get(["unique_id"]) is None:
+			import uuid
+			_uid = str(uuid.uuid4())
+			self._settings.set(["unique_id"], _uid)
+			settings().save()
+
+		helpers = self._plugin_manager.get_helpers("mqtt", "mqtt_publish")
+		if helpers:
+			if "mqtt_publish" in helpers:
+				self.mqtt_publish = helpers["mqtt_publish"]
+				self._generate_device_registration()
+
+	def _get_mac_address(self):
+		import uuid
+		return ':'.join(re.findall('..', '%012x' % uuid.getnode()))
+
+	def _generate_device_registration(self):
+
+		s = settings()
+		mqtt_defaults = dict(plugins=dict(mqtt=MQTT_DEFAULTS))
+		name_defaults = dict(appearance=dict(name="OctoPrint"))
+
+		_node_name = s.get(["appearance", "name"], defaults=name_defaults)
+		_node_uuid = self._settings.get(["unique_id"])
+		_node_id = (_node_uuid[:6]).upper()
+
+		_base_topic = s.get(["plugins", "mqtt", "publish", "baseTopic"], defaults=mqtt_defaults)
+		_event_topic = s.get(["plugins", "mqtt", "publish", "eventTopic"], defaults=mqtt_defaults)
+		_progress_topic = s.get(["plugins", "mqtt", "publish", "progressTopic"], defaults=mqtt_defaults)
+		_temperature_topic = s.get(["plugins", "mqtt", "publish", "temperatureTopic"], defaults=mqtt_defaults)
+
+		_config_device = {
+			"ids": [_node_id],
+			"cns": [["mac", self._get_mac_address()]]
+		}
+
+		##~~ Configure Connected Sensor
+
+		_topic_connected = "homeassistant/binary_sensor/" + _node_id + "_CONNECTED/config"
+		_config_connected = {
+			"name": _node_name + " Connected",
+			"uniq_id": _node_id + "_CONNECTED",
+			"stat_t": "~" + _event_topic.replace('{event}', 'Connected'),
+			"avty_t": "~mqtt",
+			"pl_avail": "connected",
+			"pl_not_avail": "disconnected",
+			"unit_of_meas": " ",
+			"val_tpl": "{{value_json._event}}",
+			"device": _config_device,
+			"~": _base_topic
+		}
+
+		self.mqtt_publish(_topic_connected, _config_connected)
+
+		##~~ Configure Printing Sensor
+
+		_topic_printing = "homeassistant/binary_sensor/" + _node_id + "_STATUS/config"
+		_config_printing = {
+			"name": _node_name + " Status",
+			"uniq_id": _node_id + "_STATUS",
+			"stat_t": "~" + _event_topic.replace('{event}', 'PrintStarted'),
+			"avty_t": "~mqtt",
+			"pl_avail": "connected",
+			"pl_not_avail": "disconnected",
+			"unit_of_meas": " ",
+			"val_tpl": "{{value_json._event}}",
+			"device": _config_device,
+			"~": _base_topic
+		}
+
+		self.mqtt_publish(_topic_printing, _config_printing)
+
+		##~~ Configure Print Status
+
+		_topic_progress = "homeassistant/sensor/" + _node_id + "_PROGRESS/config"
+		_config_progress = {
+			"name": _node_name + " Print Progress",
+			"uniq_id": _node_id + "_PROGRESS",
+			"stat_t": "~" + _progress_topic.replace('{progress}', 'printing'),
+			"avty_t": "~mqtt",
+			"pl_avail": "connected",
+			"pl_not_avail": "disconnected",
+			"unit_of_meas": "%",
+			"val_tpl": "{{int(value_json.progress)}}",
+			"device": _config_device,
+			"~": _base_topic
+		}
+
+		self.mqtt_publish(_topic_progress, _config_progress)
+
+		##~~ Tool Temperature
+		_e = self._printer_profile_manager.get_current_or_default()["extruder"]["count"]
+		for x in range(_e):
+			_topic_e_temp = "homeassistant/sensor/" + _node_id + "_TOOL" + str(x) + "/config"
+			_config_e_temp = {
+				"name": _node_name + " Tool " + str(x) + " Temperature",
+				"uniq_id": _node_id + "_TOOL" + str(x),
+				"stat_t": "~" + _temperature_topic.replace('{temperature}', 'tool' + str(x)),
+				"avty_t": "~mqtt",
+				"pl_avail": "connected",
+				"pl_not_avail": "disconnected",
+				"unit_of_meas": "degrees",
+				"val_tpl": "{{float(value_json.actual)}}",
+				"device": _config_device,
+				"~": _base_topic
+			}
+
+			self.mqtt_publish(_topic_e_temp, _config_e_temp)
+
+		##~~ Bed Temperature
+
+		_topic_bed_temp = "homeassistant/sensor/" + _node_id + "_BED/config"
+		_config_bed_temp = {
+			"name": _node_name + " Bed Temperature",
+			"uniq_id": _node_id + "_BED",
+			"stat_t": "~" + _temperature_topic.replace('{temperature}', 'bed'),
+			"avty_t": "~mqtt",
+			"pl_avail": "connected",
+			"pl_not_avail": "disconnected",
+			"unit_of_meas": "degrees",
+			"val_tpl": "{{float(value_json.actual)}}",
+			"device": _config_device,
+			"~": _base_topic
+		}
+
+		self.mqtt_publish(_topic_bed_temp, _config_bed_temp)
+
+	##~~ WizardPlugin mixin
+
+	def is_wizard_required(self):
+		helpers = self._plugin_manager.get_helpers("mqtt")
+		if helpers:
+			return False
+		return True
+
 	##~~ Softwareupdate hook
 
 	def get_update_information(self):
@@ -50,7 +201,7 @@ class Octoprint-homeassistantPlugin(octoprint.plugin.SettingsPlugin,
 		# Plugin here. See https://docs.octoprint.org/en/master/bundledplugins/softwareupdate.html
 		# for details.
 		return dict(
-			OctoPrint-HomeAssistant=dict(
+			homeassistant=dict(
 				displayName="Octoprint-homeassistant Plugin",
 				displayVersion=self._plugin_version,
 
@@ -66,24 +217,15 @@ class Octoprint-homeassistantPlugin(octoprint.plugin.SettingsPlugin,
 		)
 
 
-# If you want your plugin to be registered within OctoPrint under a different name than what you defined in setup.py
-# ("OctoPrint-PluginSkeleton"), you may define that here. Same goes for the other metadata derived from setup.py that
-# can be overwritten via __plugin_xyz__ control properties. See the documentation for that.
-__plugin_name__ = "HomeAssistant Plugin"
+__plugin_name__ = "HomeAssistant Discovery"
+__plugin_pythoncompat__ = ">=2.7,<4"  # python 2 and 3
 
-# Starting with OctoPrint 1.4.0 OctoPrint will also support to run under Python 3 in addition to the deprecated
-# Python 2. New plugins should make sure to run under both versions for now. Uncomment one of the following
-# compatibility flags according to what Python versions your plugin supports!
-#__plugin_pythoncompat__ = ">=2.7,<3" # only python 2
-#__plugin_pythoncompat__ = ">=3,<4" # only python 3
-__plugin_pythoncompat__ = ">=2.7,<4" # python 2 and 3
 
 def __plugin_load__():
 	global __plugin_implementation__
-	__plugin_implementation__ = Octoprint-homeassistantPlugin()
+	__plugin_implementation__ = HomeassistantPlugin()
 
 	global __plugin_hooks__
 	__plugin_hooks__ = {
 		"octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information
 	}
-
