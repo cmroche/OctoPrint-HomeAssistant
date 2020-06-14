@@ -59,7 +59,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 	##~~ StartupPlugin mixin
 
 	def on_startup(self, host, port):
-		self._logger.setLevel(logging.DEBUG)
+		self._logger.setLevel(logging.INFO)
 
 	def on_after_startup(self):
 		if self._settings.get(["unique_id"]) is None:
@@ -198,7 +198,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 			"pl_avail": "connected",
 			"pl_not_avail": "disconnected",
 			"unit_of_meas": "%",
-			"val_tpl": "{{value_json.progress | float}}",
+			"val_tpl": "{{value_json.progress|float|default(0)}}",
 			"device": _config_device,
 			"~": self._generate_topic("baseTopic", "", full=True)
 		}
@@ -235,7 +235,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 			"pl_avail": "connected",
 			"pl_not_avail": "disconnected",
 			"unit_of_meas": "%",
-			"val_tpl": "{{value_json.progress | float}}",
+			"val_tpl": "{{value_json.progress|float|default(0)}}",
 			"device": _config_device,
 			"~": self._generate_topic("baseTopic", "", full=True)
 		}
@@ -273,7 +273,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				"pl_avail": "connected",
 				"pl_not_avail": "disconnected",
 				"unit_of_meas": "°C",
-				"val_tpl": "{{float(value_json.actual)}}",
+				"val_tpl": "{{value_json.actual|float}}",
 				"device": _config_device,
 				"dev_cla": "temperature",
 				"~": self._generate_topic("baseTopic", "", full=True)
@@ -293,7 +293,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 			"pl_avail": "connected",
 			"pl_not_avail": "disconnected",
 			"unit_of_meas": "°C",
-			"val_tpl": "{{float(value_json.actual)}}",
+			"val_tpl": "{{value_json.actual|float}}",
 			"device": _config_device,
 			"dev_cla": "temperature",
 			"~": self._generate_topic("baseTopic", "", full=True)
