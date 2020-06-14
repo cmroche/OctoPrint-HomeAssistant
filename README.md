@@ -1,6 +1,6 @@
 # OctoPrint-HomeAsisstant
 
-**TODO:** Describe what your plugin does.
+Enable MQTT based discovery of your OctoPrint server with Home Assistant.
 
 ## Setup
 
@@ -9,9 +9,7 @@ or manually using this URL:
 
     https://github.com/cmroche/OctoPrint-HomeAsisstant/archive/master.zip
 
-**TODO:** Describe how to install your plugin, if more needs to be done than just installing it via pip or through
-the plugin manager.
+You will also need the OctoPrint-MQTT plugin installed and configured to connected to your Home Assistant MQTT service, and MQTT discovery enabled (should be the default). With these, by using the OctoPrint-HomeAssistant plugin your OctoPrint instance will automatically register a device and several sensors to follow your printer status, printing and slicing progress.
 
-## Configuration
+***NOTE*** OctoPrint-MQTT works best with HomeAssistant if you leave the default "retain" option enabled. Remember to restart OctoPrint after configuring your MQTT broker settings or installing OctoPrint-HomeAssistant to properly register.
 
-**TODO:** Describe your plugin's configuration options (if any).
