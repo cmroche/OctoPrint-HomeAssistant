@@ -1,4 +1,4 @@
 include README.md
-recursive-include OctoPrint-HomeAssistant/templates *
-recursive-include OctoPrint-HomeAssistant/translations *
-recursive-include OctoPrint-HomeAssistant/static *
+recursive-include octoprint_homeassistant/templates *
+recursive-include octoprint_homeassistant/translations *
+recursive-include octoprint_homeassistant/static *
