@@ -35,7 +35,6 @@ MQTT_DEFAULTS = dict(
 
 
 class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
-						  octoprint.plugin.AssetPlugin,
 						  octoprint.plugin.TemplatePlugin,
 						  octoprint.plugin.StartupPlugin,
 						  octoprint.plugin.WizardPlugin):
@@ -44,17 +43,6 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 
 	def get_settings_defaults(self):
 		return SETTINGS_DEFAULTS
-
-	##~~ AssetPlugin mixin
-
-	def get_assets(self):
-		# Define your plugin's asset files to automatically include in the
-		# core UI here.
-		return dict(
-			js=["js/OctoPrint-HomeAssistant.js"],
-			css=["css/OctoPrint-HomeAssistant.css"],
-			less=["less/OctoPrint-HomeAssistant.less"]
-		)
 
 	##~~ StartupPlugin mixin
 
