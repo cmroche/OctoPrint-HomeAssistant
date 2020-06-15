@@ -186,7 +186,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 			"pl_avail": "connected",
 			"pl_not_avail": "disconnected",
 			"unit_of_meas": "%",
-			"val_tpl": "{{value_json.progress|float|default(0)}}",
+			"val_tpl": "{{value_json.progress|float|default(0,true)}}",
 			"device": _config_device,
 			"~": self._generate_topic("baseTopic", "", full=True)
 		}
@@ -223,7 +223,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 			"pl_avail": "connected",
 			"pl_not_avail": "disconnected",
 			"unit_of_meas": "%",
-			"val_tpl": "{{value_json.progress|float|default(0)}}",
+			"val_tpl": "{{value_json.progress|float|default(0,true)}}",
 			"device": _config_device,
 			"~": self._generate_topic("baseTopic", "", full=True)
 		}
