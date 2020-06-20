@@ -38,6 +38,7 @@ MQTT_DEFAULTS = dict(
 class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 						  octoprint.plugin.TemplatePlugin,
 						  octoprint.plugin.StartupPlugin,
+                          octoprint.plugin.EventHandlerPlugin,
 						  octoprint.plugin.ProgressPlugin,
 						  octoprint.plugin.WizardPlugin):
 
@@ -306,6 +307,16 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 
 		##~~ Setup the default printer states
 		self.on_print_progress("", "", 0)
+
+	##~~ EventHandlerPlugin API
+
+	def on_event(self, event, payload):
+		if event in (Events.PRINT_STARTED, Events.FILE_SELECTED, Events.PRINT_CANCELLING, Events.PRINT_FAILED):
+			self.on_print_progress(payload["origin"], payload["path"], 0)
+		elif event == Events.PRINT_DONE:
+			self.on_print_progress(payload["origin"], payload["path"], 100)
+		elif event in (Events.FILE_DESELECTED, Events.CONNECTING, Events.ERROR, Events.DISCONNECTED):
+			self.on_print_progress("", "", 0)
 
 	##~~ ProgressPlugin API
 
