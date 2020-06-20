@@ -439,11 +439,11 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 		events = dict(comm=(Events.CONNECTING, Events.CONNECTED, Events.DISCONNECTING,
 							Events.DISCONNECTED, Events.ERROR, Events.PRINTER_STATE_CHANGED),
 					  files=(Events.FILE_SELECTED, Events.FILE_DESELECTED),
-					  print=(Events.PRINT_STARTED, Events.PRINT_FAILED, Events.PRINT_DONE,
+					  status=(Events.PRINT_STARTED, Events.PRINT_FAILED, Events.PRINT_DONE,
 							 Events.PRINT_CANCELLED, Events.PRINT_PAUSED, Events.PRINT_RESUMED,
 							 Events.Z_CHANGE))
 
-		if event in events["comm"] or event in events["files"] or event in events["print"]:
+		if event in events["comm"] or event in events["files"] or event in events["status"]:
 			self._logger.debug("Received event " + event + ", updating status")
 			self._generate_printer_status()
 
