@@ -247,6 +247,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 			"pl_not_avail": "disconnected",
 			"val_tpl": "{{value_json.path}}",
 			"device": _config_device,
+			"ic": "mdi:file",
 			"~": self._generate_topic("baseTopic", "", full=True)
 		}
 
@@ -320,6 +321,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 			"unit_of_meas": "mm",
 			"val_tpl": "{{value_json.currentZ|float}}",
 			"device": _config_device,
+			"ic": "mdi:printer-3d-nozzle",
 			"~": self._generate_topic("baseTopic", "", full=True)
 		}
 
@@ -357,6 +359,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 			"pl_not_avail": "disconnected",
 			"val_tpl": "{{value_json.source_path}}",
 			"device": _config_device,
+			"ic": "mdi:file",
 			"~": self._generate_topic("baseTopic", "", full=True)
 		}
 
