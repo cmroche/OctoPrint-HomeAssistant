@@ -5,6 +5,7 @@ import octoprint.plugin
 from octoprint.server import user_permission
 from octoprint.events import eventManager, Events
 from octoprint.settings import settings
+from octoprint.util import RepeatedTimer
 import threading
 import time
 import os
@@ -38,7 +39,7 @@ MQTT_DEFAULTS = dict(
 class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 						  octoprint.plugin.TemplatePlugin,
 						  octoprint.plugin.StartupPlugin,
-                          octoprint.plugin.EventHandlerPlugin,
+						  octoprint.plugin.EventHandlerPlugin,
 						  octoprint.plugin.ProgressPlugin,
 						  octoprint.plugin.WizardPlugin):
 
@@ -46,6 +47,10 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 		self.mqtt_publish = None
 		self.mqtt_publish_with_timestamp = None
 		self.mqtt_subcribe = None
+		self.update_timer = None
+
+	def handle_timer(self):
+		self._generate_printer_status()
 
 	##~~ SettingsPlugin
 
@@ -55,7 +60,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 	##~~ StartupPlugin mixin
 
 	def on_startup(self, host, port):
-		self._logger.setLevel(logging.INFO)
+		self._logger.setLevel(logging.DEBUG)
 
 	def on_after_startup(self):
 		if self._settings.get(["unique_id"]) is None:
@@ -64,7 +69,8 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 			self._settings.set(["unique_id"], _uid)
 			settings().save()
 
-		helpers = self._plugin_manager.get_helpers("mqtt", "mqtt_publish", "mqtt_publish_with_timestamp", "mqtt_subscribe")
+		helpers = self._plugin_manager.get_helpers("mqtt", "mqtt_publish", "mqtt_publish_with_timestamp",
+												   "mqtt_subscribe")
 		if helpers:
 			if "mqtt_publish_with_timestamp" in helpers:
 				self._logger.debug("Setup publish with timestamp helper")
@@ -83,6 +89,9 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				self.mqtt_subscribe = helpers["mqtt_subscribe"]
 				self.mqtt_subscribe(self._generate_topic("baseTopic", "mqtt", full=True), self._on_mqtt_message)
 
+		if not self.update_timer:
+			self.update_timer = RepeatedTimer(60, self.handle_timer, None, None, False)
+
 	def _get_mac_address(self):
 		import uuid
 		return ':'.join(re.findall('..', '%012x' % uuid.getnode()))
@@ -95,6 +104,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 			self._generate_device_registration()
 
 	def _generate_topic(self, topic_type, topic, full=False):
+		self._logger.debug("Generating topic for " + topic_type + ", " + topic)
 		mqtt_defaults = dict(plugins=dict(mqtt=MQTT_DEFAULTS))
 		_topic = ""
 
@@ -154,14 +164,14 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 		_config_printing = {
 			"name": _node_name + " Printing",
 			"uniq_id": _node_id + "_PRINTING",
-			"stat_t": "~" + self._generate_topic("progressTopic", "printing"),
-			"json_attr_t": "~" + self._generate_topic("progressTopic", "printing"),
+			"stat_t": "~" + self._generate_topic("hassTopic", "printing"),
+			"json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
 			"avty_t": "~mqtt",
 			"pl_avail": "connected",
 			"pl_not_avail": "disconnected",
 			"pl_on": "True",
 			"pl_off": "False",
-			"val_tpl": '{{value_json.progress > 0}}',
+			"val_tpl": '{{value_json.state.flags.printing}}',
 			"device": _config_device,
 			"~": self._generate_topic("baseTopic", "", full=True)
 		}
@@ -187,6 +197,24 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 		self.mqtt_publish(_topic_last_event, _config_last_event, allow_queueing=True)
 
 		##~~ Configure Print Status
+
+		_topic_printing_s = "homeassistant/sensor/" + _node_id + "_PRINTING_S/config"
+		_config_printing_s = {
+			"name": _node_name + " Print Status",
+			"uniq_id": _node_id + "_PRINTING_P",
+			"stat_t": "~" + self._generate_topic("hassTopic", "printing"),
+			"json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
+			"avty_t": "~mqtt",
+			"pl_avail": "connected",
+			"pl_not_avail": "disconnected",
+			"val_tpl": "{{value_json.status.text}}",
+			"device": _config_device,
+			"~": self._generate_topic("baseTopic", "", full=True)
+		}
+
+		self.mqtt_publish(_topic_printing_s, _config_printing_s, allow_queueing=True)
+
+		##~~ Configure Print Progress
 
 		_topic_printing_p = "homeassistant/sensor/" + _node_id + "_PRINTING_P/config"
 		_config_printing_p = {
@@ -308,25 +336,41 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 		##~~ Setup the default printer states
 		self.on_print_progress("", "", 0)
 
+	def _generate_printer_status(self):
+
+		data = self._printer.get_current_data()
+		if self.mqtt_publish_with_timestamp:
+			self.mqtt_publish_with_timestamp(self._generate_topic("hassTopic", "printing", full=True), data,
+										 	 allow_queueing=True)
+
 	##~~ EventHandlerPlugin API
 
 	def on_event(self, event, payload):
-		if event in (Events.PRINT_STARTED, Events.FILE_SELECTED, Events.PRINT_CANCELLING, Events.PRINT_FAILED):
-			self.on_print_progress(payload["origin"], payload["path"], 0)
-		elif event == Events.PRINT_DONE:
-			self.on_print_progress(payload["origin"], payload["path"], 100)
-		elif event in (Events.FILE_DESELECTED, Events.CONNECTING, Events.ERROR, Events.DISCONNECTED):
-			self.on_print_progress("", "", 0)
+		events = dict(comm=(Events.CONNECTING, Events.CONNECTED, Events.DISCONNECTING,
+							Events.DISCONNECTED, Events.ERROR, Events.PRINTER_STATE_CHANGED),
+					  files=(Events.FILE_SELECTED, Events.FILE_DESELECTED),
+					  print=(Events.PRINT_STARTED, Events.PRINT_FAILED, Events.PRINT_DONE,
+							 Events.PRINT_CANCELLED, Events.PRINT_PAUSED, Events.PRINT_RESUMED))
+
+		if event in events["comm"] or event in events["files"] or event in events["print"]:
+			self._logger.debug("Received event " + event + ", updating status")
+			self._generate_printer_status()
+
+		if event == Events.PRINT_STARTED:
+			if self.update_timer:
+				self.update_timer.start()
+
+		elif event in (Events.PRINT_DONE, Events.PRINT_FAILED, Events.PRINT_CANCELLED):
+			if self.update_timer:
+				self.update_timer.cancel()
 
 	##~~ ProgressPlugin API
 
 	def on_print_progress(self, storage, path, progress):
+		self._generate_printer_status()
 
-		data = self._printer.get_current_data()
-		self.mqtt_publish_with_timestamp(self._generate_topic("hassTopic", "printing", full=True), data, allow_queueing=True)
-
-	def on_slicing_progress(self, slicer, source_location, source_path, destination_location, destination_path, progress):
-
+	def on_slicing_progress(self, slicer, source_location, source_path, destination_location, destination_path,
+							progress):
 		pass
 
 	##~~ WizardPlugin mixin
