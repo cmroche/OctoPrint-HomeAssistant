@@ -29,6 +29,7 @@ MQTT_DEFAULTS = dict(
 		eventTopic="event/{event}",
 		progressTopic="progress/{progress}",
 		temperatureTopic="temperature/{temp}",
+		hassTopic="hass/{hass}",
 		lwTopic="mqtt"
 	)
 )
@@ -37,7 +38,13 @@ MQTT_DEFAULTS = dict(
 class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 						  octoprint.plugin.TemplatePlugin,
 						  octoprint.plugin.StartupPlugin,
+						  octoprint.plugin.ProgressPlugin,
 						  octoprint.plugin.WizardPlugin):
+
+	def __init__(self):
+		self.mqtt_publish = None
+		self.mqtt_publish_with_timestamp = None
+		self.mqtt_subcribe = None
 
 	##~~ SettingsPlugin
 
@@ -56,8 +63,12 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 			self._settings.set(["unique_id"], _uid)
 			settings().save()
 
-		helpers = self._plugin_manager.get_helpers("mqtt", "mqtt_publish", "mqtt_subscribe")
+		helpers = self._plugin_manager.get_helpers("mqtt", "mqtt_publish", "mqtt_publish_with_timestamp", "mqtt_subscribe")
 		if helpers:
+			if "mqtt_publish_with_timestamp" in helpers:
+				self._logger.debug("Setup publish with timestamp helper")
+				self.mqtt_publish_with_timestamp = helpers["mqtt_publish_with_timestamp"]
+
 			if "mqtt_publish" in helpers:
 				self._logger.debug("Setup publish helper")
 				self.mqtt_publish = helpers["mqtt_publish"]
@@ -293,6 +304,20 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 		_connected_topic = self._generate_topic("lwTopic", "", full=True)
 		self.mqtt_publish(_connected_topic, "connected", allow_queueing=True)
 
+		##~~ Setup the default printer states
+		self.on_print_progress("", "", 0)
+
+	##~~ ProgressPlugin API
+
+	def on_print_progress(self, storage, path, progress):
+
+		data = self._printer.get_current_data()
+		self.mqtt_publish_with_timestamp(self._generate_topic("hassTopic", "printing", full=True), data, allow_queueing=True)
+
+	def on_slicing_progress(self, slicer, source_location, source_path, destination_location, destination_path, progress):
+
+		pass
+
 	##~~ WizardPlugin mixin
 
 	def is_wizard_required(self):
@@ -315,7 +340,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 		# for details.
 		return dict(
 			homeassistant=dict(
-				displayName="Octoprint-homeassistant Plugin",
+				displayName="HomeAssistant Discovery Plugin",
 				displayVersion=self._plugin_version,
 
 				# version check: github repository
