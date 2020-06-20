@@ -6,6 +6,7 @@ from octoprint.server import user_permission
 from octoprint.events import eventManager, Events
 from octoprint.settings import settings
 from octoprint.util import RepeatedTimer
+import datetime
 import threading
 import time
 import os
@@ -201,7 +202,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 		_topic_printing_s = "homeassistant/sensor/" + _node_id + "_PRINTING_S/config"
 		_config_printing_s = {
 			"name": _node_name + " Print Status",
-			"uniq_id": _node_id + "_PRINTING_P",
+			"uniq_id": _node_id + "_PRINTING_S",
 			"stat_t": "~" + self._generate_topic("hassTopic", "printing"),
 			"json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
 			"avty_t": "~mqtt",
@@ -250,6 +251,79 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 		}
 
 		self.mqtt_publish(_topic_printing_f, _config_printing_f, allow_queueing=True)
+
+		##~~ Configure Print Time
+
+		_topic_printing_t = "homeassistant/sensor/" + _node_id + "_PRINTING_T/config"
+		_config_printing_t = {
+			"name": _node_name + " Print Time",
+			"uniq_id": _node_id + "_PRINTING_T",
+			"stat_t": "~" + self._generate_topic("hassTopic", "printing"),
+			"json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
+			"avty_t": "~mqtt",
+			"pl_avail": "connected",
+			"pl_not_avail": "disconnected",
+			"val_tpl": "{{value_json.progress.printTimeFormatted}}",
+			"device": _config_device,
+			"~": self._generate_topic("baseTopic", "", full=True)
+		}
+
+		self.mqtt_publish(_topic_printing_t, _config_printing_t, allow_queueing=True)
+
+		##~~ Configure Print Time Left
+
+		_topic_printing_e = "homeassistant/sensor/" + _node_id + "_PRINTING_E/config"
+		_config_printing_e = {
+			"name": _node_name + " Print Time Left",
+			"uniq_id": _node_id + "_PRINTING_E",
+			"stat_t": "~" + self._generate_topic("hassTopic", "printing"),
+			"json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
+			"avty_t": "~mqtt",
+			"pl_avail": "connected",
+			"pl_not_avail": "disconnected",
+			"val_tpl": "{{value_json.progress.printTimeLeftFormatted}}",
+			"device": _config_device,
+			"~": self._generate_topic("baseTopic", "", full=True)
+		}
+
+		self.mqtt_publish(_topic_printing_e, _config_printing_e, allow_queueing=True)
+
+		##~~ Configure Print ETA
+
+		_topic_printing_eta = "homeassistant/sensor/" + _node_id + "_PRINTING_ETA/config"
+		_config_printing_eta = {
+			"name": _node_name + " Print Estimated Time",
+			"uniq_id": _node_id + "_PRINTING_ETA",
+			"stat_t": "~" + self._generate_topic("hassTopic", "printing"),
+			"json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
+			"avty_t": "~mqtt",
+			"pl_avail": "connected",
+			"pl_not_avail": "disconnected",
+			"val_tpl": "{{value_json.job.estimatedPrintTimeFormatted}}",
+			"device": _config_device,
+			"~": self._generate_topic("baseTopic", "", full=True)
+		}
+
+		self.mqtt_publish(_topic_printing_eta, _config_printing_eta, allow_queueing=True)
+
+		##~~ Configure Print Current Z
+
+		_topic_printing_z = "homeassistant/sensor/" + _node_id + "_PRINTING_Z/config"
+		_config_printing_z = {
+			"name": _node_name + " Current Z",
+			"uniq_id": _node_id + "_PRINTING_Z",
+			"stat_t": "~" + self._generate_topic("hassTopic", "printing"),
+			"json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
+			"avty_t": "~mqtt",
+			"pl_avail": "connected",
+			"pl_not_avail": "disconnected",
+			"unit_of_meas": "mm",
+			"val_tpl": "{{value_json.currentZ|float}}",
+			"device": _config_device,
+			"~": self._generate_topic("baseTopic", "", full=True)
+		}
+
+		self.mqtt_publish(_topic_printing_z, _config_printing_z, allow_queueing=True)
 
 		##~~ Configure Slicing Status
 
@@ -339,6 +413,19 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 	def _generate_printer_status(self):
 
 		data = self._printer.get_current_data()
+		try:
+			data["progress"]["printTimeLeftFormatted"] = str(datetime.timedelta(seconds=int(data["progress"]["printTimeLeft"])))
+		except:
+			data["progress"]["printTimeLeftFormatted"] = None
+		try:
+			data["progress"]["printTimeFormatted"] = str(datetime.timedelta(seconds=data["progress"]["printTime"]))
+		except:
+			data["progress"]["printTimeFormatted"] = None
+		try:
+			data["job"]["estimatedPrintTimeFormatted"] = str(datetime.timedelta(seconds=data["job"]["estimatedPrintTime"]))
+		except:
+			data["job"]["estimatedPrintTimeFormatted"] = None
+
 		if self.mqtt_publish_with_timestamp:
 			self.mqtt_publish_with_timestamp(self._generate_topic("hassTopic", "printing", full=True), data,
 										 	 allow_queueing=True)
@@ -350,7 +437,8 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 							Events.DISCONNECTED, Events.ERROR, Events.PRINTER_STATE_CHANGED),
 					  files=(Events.FILE_SELECTED, Events.FILE_DESELECTED),
 					  print=(Events.PRINT_STARTED, Events.PRINT_FAILED, Events.PRINT_DONE,
-							 Events.PRINT_CANCELLED, Events.PRINT_PAUSED, Events.PRINT_RESUMED))
+							 Events.PRINT_CANCELLED, Events.PRINT_PAUSED, Events.PRINT_RESUMED,
+							 Events.Z_CHANGE))
 
 		if event in events["comm"] or event in events["files"] or event in events["print"]:
 			self._logger.debug("Received event " + event + ", updating status")
