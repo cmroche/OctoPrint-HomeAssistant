@@ -61,7 +61,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 	##~~ StartupPlugin mixin
 
 	def on_startup(self, host, port):
-		self._logger.setLevel(logging.DEBUG)
+		self._logger.setLevel(logging.INFO)
 
 	def on_after_startup(self):
 		if self._settings.get(["unique_id"]) is None:
