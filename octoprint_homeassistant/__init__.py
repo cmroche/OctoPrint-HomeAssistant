@@ -208,7 +208,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 			"avty_t": "~mqtt",
 			"pl_avail": "connected",
 			"pl_not_avail": "disconnected",
-			"val_tpl": "{{value_json.status.text}}",
+			"val_tpl": "{{value_json.state.text}}",
 			"device": _config_device,
 			"~": self._generate_topic("baseTopic", "", full=True)
 		}
