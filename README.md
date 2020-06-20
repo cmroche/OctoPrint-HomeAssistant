@@ -13,3 +13,15 @@ You will also need the [OctoPrint-MQTT plugin](https://github.com/OctoPrint/Octo
 
 ***NOTE*** OctoPrint-MQTT works best with HomeAssistant if you leave the default "retain" option enabled. Remember to restart OctoPrint after configuring your MQTT broker settings or installing OctoPrint-HomeAssistant to properly register.
 
+## Why use this plugin?
+
+* MQTT updates are faster, and smaller than querying the Web API
+* MQTT updates won't generate errors when OctoPrint isn't running
+* MQTT is a local-push implementation, the HomeAssistant native OctoPrint integration uses local-polling
+* No need to set static IP addresses or add manual configurations, it just works.
+
+### Benefit from more sensors
+
+* Reliable printer status, and is printing sensors.
+* Current Z height
+* Formatted print time, and print time remaining
