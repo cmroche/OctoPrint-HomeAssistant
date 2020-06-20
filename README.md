@@ -1,4 +1,4 @@
-# OctoPrint-HomeAsisstant
+# OctoPrint-HomeAssistant
 
 Enable MQTT based discovery of your OctoPrint server with Home Assistant.
 

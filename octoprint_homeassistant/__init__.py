@@ -321,11 +321,11 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				# version check: github repository
 				type="github_release",
 				user="cmroche",
-				repo="OctoPrint-HomeAsisstant",
+				repo="OctoPrint-HomeAssistant",
 				current=self._plugin_version,
 
 				# update method: pip
-				pip="https://github.com/cmroche/OctoPrint-HomeAsisstant/archive/{target_version}.zip"
+				pip="https://github.com/cmroche/OctoPrint-HomeAssistant/archive/{target_version}.zip"
 			)
 		)
 

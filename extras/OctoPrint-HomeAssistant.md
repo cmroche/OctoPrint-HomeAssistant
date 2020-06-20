@@ -2,7 +2,7 @@
 layout: plugin
 
 id: OctoPrint-HomeAssistant
-title: OctoPrint-HomeAsisstant
+title: OctoPrint-HomeAssistant
 description: OctoPrint HomeAssistant plugin connects to your home assistant setup using MQTT and provides automatic discovery of the devicea and sensors.
 author: Clifford Roche
 license: AGPLv3
@@ -11,8 +11,8 @@ license: AGPLv3
 date: today's date in format YYYY-MM-DD, e.g. 2015-04-21
 
 homepage: https://github.com/cmroche/OctoPrint-HomeAsisstant
-source: https://github.com/cmroche/OctoPrint-HomeAsisstant
-archive: https://github.com/cmroche/OctoPrint-HomeAsisstant/archive/master.zip
+source: https://github.com/cmroche/OctoPrint-HomeAssistant
+archive: https://github.com/cmroche/OctoPrint-HomeAssistant/archive/master.zip
 
 # TODO
 # Set this to true if your plugin uses the dependency_links setup parameter to include
@@ -82,16 +82,16 @@ compatibility:
   - windows
   - macos
   - freebsd
-  
+
   # Compatible Python version
   #
   # Plugins should aim for compatibility for Python 2 and 3 for now, in which case the value should be ">=2.7,<4".
   #
-  # Plugins that only wish to support Python 3 should set it to ">=3,<4". 
+  # Plugins that only wish to support Python 3 should set it to ">=3,<4".
   #
   # If your plugin only supports Python 2 (worst case, not recommended for newly developed plugins since Python 2
   # is EOL), leave at ">=2.7,<3"
-  
+
   python: ">=2.7,<3"
 
 ---
