@@ -266,6 +266,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 			"pl_not_avail": "disconnected",
 			"val_tpl": "{{value_json.progress.printTimeFormatted}}",
 			"device": _config_device,
+			"ic": "mdi:clock-start",
 			"~": self._generate_topic("baseTopic", "", full=True)
 		}
 
@@ -284,6 +285,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 			"pl_not_avail": "disconnected",
 			"val_tpl": "{{value_json.progress.printTimeLeftFormatted}}",
 			"device": _config_device,
+			"ic": "mdi:clock-check-outline",
 			"~": self._generate_topic("baseTopic", "", full=True)
 		}
 
