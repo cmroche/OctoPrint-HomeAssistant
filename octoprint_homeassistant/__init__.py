@@ -396,11 +396,23 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 			self._printer.cancel_print()
 
 	def _on_pause_print(self, topic, message, retained=None, qos=None, *args, **kwargs):
-		self._logger.debug('Cancel print message received: ' + str(message))
+		self._logger.debug('Pause print message received: ' + str(message))
 		if message:
 			self._printer.pause_print()
 		else:
 			self._printer.resume_print()
+
+	def _on_shutdown_system(self, topic, message, retained=None, qos=None, *args, **kwargs):
+		self._logger.debug('Shutdown print message received: ' + str(message))
+		if message:
+			shutdown_command = self._settings.global_get(["server", "commands", "systemShutdownCommand"])
+			try:
+				import sarge
+				params = {'async': True}
+				sarge.run(shutdown_command, **params)
+			except Exception as e:
+				self._logger.info('Unable to run shutdown command: ' + e)
+				pass
 
 	def _generate_device_controls(self, subscribe=False):
 
@@ -476,8 +488,23 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 		)
 
 		# Shutdown OctoPrint
+		if subscribe:
+			self.mqtt_subscribe(self._generate_topic("controlTopic", "shutdown", full=True), self._on_shutdown_system)
 
-		pass
+		self._generate_sensor(
+			topic='homeassistant/switch/' + _node_id + '_SHUTDOWN/config',
+			values={
+				'name': _node_name + ' Shutdown System',
+				'uniq_id': _node_id + '_SHUTDOWN',
+				'cmd_t': '~' + self._generate_topic('controlTopic', 'shutdown'),
+				'stat_t': '~' + self._generate_topic('controlTopic', 'shutdown'),
+				'pl_off': 'False',
+				'pl_on': 'True',
+				'val_tpl': '{{False}}',
+				'device': _config_device,
+				'ic': 'mdi:power'
+			}
+		)
 
 	##~~ EventHandlerPlugin API
 
