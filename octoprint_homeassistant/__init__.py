@@ -99,8 +99,8 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 		self.mqtt_publish(_connected_topic, 'connected', allow_queueing=True)
 
 		# Setup the default printer states
-		self.mqtt_publish(self._generate_topic("hassTopic", "is_printing", full=True), 'False',
-						  allow_queueing=True)
+		self.mqtt_publish(self._generate_topic("hassTopic", "is_printing", full=True), 'False', allow_queueing=True)
+		self.mqtt_publish(self._generate_topic("hassTopic", "is_paused", full=True), 'False', allow_queueing=True)
 		self.on_print_progress('', '', 0)
 
 	def _get_mac_address(self):
@@ -395,6 +395,13 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 		if message:
 			self._printer.cancel_print()
 
+	def _on_pause_print(self, topic, message, retained=None, qos=None, *args, **kwargs):
+		self._logger.debug('Cancel print message received: ' + str(message))
+		if message:
+			self._printer.pause_print()
+		else:
+			self._printer.resume_print()
+
 	def _generate_device_controls(self, subscribe=False):
 
 		s = settings()
@@ -448,6 +455,25 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 		)
 
 		# Pause / resume print
+		if subscribe:
+			self.mqtt_subscribe(self._generate_topic("controlTopic", "pause", full=True), self._on_pause_print)
+
+		self._generate_sensor(
+			topic='homeassistant/switch/' + _node_id + '_PAUSE/config',
+			values={
+				'name': _node_name + ' Pause Print',
+				'uniq_id': _node_id + '_PAUSE',
+				'cmd_t': '~' + self._generate_topic('controlTopic', 'pause'),
+				'stat_t': '~' + self._generate_topic('hassTopic', 'is_paused'),
+				'avty_t': '~' + self._generate_topic('hassTopic', 'is_printing'),
+				'pl_avail': 'True',
+				'pl_not_avail': 'False',
+				'pl_off': 'False',
+				'pl_on': 'True',
+				'device': _config_device,
+				'ic': 'mdi:pause'
+			}
+		)
 
 		# Shutdown OctoPrint
 
@@ -478,6 +504,14 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				self.mqtt_publish(self._generate_topic("hassTopic", "is_printing", full=True), 'False',
 								  allow_queueing=True)
 				self.update_timer.cancel()
+
+		if event == Events.PRINT_PAUSED:
+			self.mqtt_publish(self._generate_topic("hassTopic", "is_paused", full=True), 'True',
+							  allow_queueing=True)
+
+		elif event in (Events.PRINT_RESUMED, Events.PRINT_STARTED):
+			self.mqtt_publish(self._generate_topic("hassTopic", "is_paused", full=True), 'False',
+							  allow_queueing=True)
 
 	##~~ ProgressPlugin API
 
