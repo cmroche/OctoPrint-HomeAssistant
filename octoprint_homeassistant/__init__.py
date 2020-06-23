@@ -31,8 +31,9 @@ MQTT_DEFAULTS = dict(
 		eventTopic="event/{event}",
 		progressTopic="progress/{progress}",
 		temperatureTopic="temperature/{temp}",
+		lwTopic="mqtt",
 		hassTopic="hass/{hass}",
-		lwTopic="mqtt"
+		controlTopic="hassControl/{control}"
 	)
 )
 
@@ -61,7 +62,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 	##~~ StartupPlugin mixin
 
 	def on_startup(self, host, port):
-		self._logger.setLevel(logging.INFO)
+		self._logger.setLevel(logging.DEBUG)
 
 	def on_after_startup(self):
 		if self._settings.get(["unique_id"]) is None:
@@ -81,17 +82,26 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				self._logger.debug("Setup publish helper")
 				self.mqtt_publish = helpers["mqtt_publish"]
 
-				# By default retain isn't used, so it's not possible to get a callback
-				# from the MQTT plugin to trigger device registration, we have to queue
-				self._generate_device_registration()
-
 			if "mqtt_subscribe" in helpers:
 				self._logger.debug("Setup subscribe helper")
 				self.mqtt_subscribe = helpers["mqtt_subscribe"]
-				self.mqtt_subscribe(self._generate_topic("baseTopic", "mqtt", full=True), self._on_mqtt_message)
+				self.mqtt_subscribe(self._generate_topic("lwTopic", "", full=True), self._on_mqtt_message)
 
 		if not self.update_timer:
 			self.update_timer = RepeatedTimer(60, self.handle_timer, None, None, False)
+
+		# Since retain may not be used it's not always possible to simply tie this to the connected state
+		self._generate_device_registration()
+		self._generate_device_controls(subscribe=True)
+
+		# For people who do not have retain setup, need to do this again to make sensors available
+		_connected_topic = self._generate_topic('lwTopic', '', full=True)
+		self.mqtt_publish(_connected_topic, 'connected', allow_queueing=True)
+
+		# Setup the default printer states
+		self.mqtt_publish(self._generate_topic("hassTopic", "is_printing", full=True), 'False', allow_queueing=True)
+		self.mqtt_publish(self._generate_topic("hassTopic", "is_paused", full=True), 'False', allow_queueing=True)
+		self.on_print_progress('', '', 0)
 
 	def _get_mac_address(self):
 		import uuid
@@ -101,8 +111,10 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 		self._logger.info("Received MQTT message from " + topic)
 		self._logger.info(message)
 
+		# Don't rely on this, the message may be disabled.
 		if message == "connected":
 			self._generate_device_registration()
+			self._generate_device_controls(sunscribe=False)
 
 	def _generate_topic(self, topic_type, topic, full=False):
 		self._logger.debug("Generating topic for " + topic_type + ", " + topic)
@@ -111,7 +123,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 
 		if topic_type != "baseTopic":
 			_topic = settings().get(["plugins", "mqtt", "publish", topic_type], defaults=mqtt_defaults)
-			_topic = _topic[:_topic.rfind('{')]
+			_topic = re.sub(r'{.+}', '', _topic);
 
 		if full or topic_type == "baseTopic":
 			_topic = settings().get(["plugins", "mqtt", "publish", "baseTopic"], defaults=mqtt_defaults) + _topic
@@ -129,291 +141,229 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 		_node_uuid = self._settings.get(["unique_id"])
 		_node_id = (_node_uuid[:6]).upper()
 
-		_config_device = {
-			"ids": [_node_id],
-			"cns": [["mac", self._get_mac_address()]],
-			"name": _node_name,
-			"mf": "Clifford Roche",
-			"mdl": "HomeAssistant Discovery for OctoPrint",
-			"sw": self._plugin_version
-		}
+		_config_device = self._generate_device_config(_node_id, _node_name)
 
 		##~~ Configure Connected Sensor
-
-		_topic_connected = "homeassistant/binary_sensor/" + _node_id + "_CONNECTED/config"
-		_config_connected = {
-			"name": _node_name + " Connected",
-			"uniq_id": _node_id + "_CONNECTED",
-			"stat_t": "~" + self._generate_topic("eventTopic", "Connected"),
-			"json_attr_t": "~" + self._generate_topic("eventTopic", "Connected"),
-			"avty_t": "~mqtt",
-			"pl_avail": "connected",
-			"pl_not_avail": "disconnected",
-			"pl_on": "Connected",
-			"pl_off": "Disconnected",
-			"val_tpl": '{{value_json._event}}',
-			"device": _config_device,
-			"dev_cla": "connectivity",
-			"~": self._generate_topic("baseTopic", "", full=True)
-		}
-
-		self.mqtt_publish(_topic_connected, _config_connected, allow_queueing=True)
+		self._generate_sensor(
+			topic='homeassistant/binary_sensor/' + _node_id + '_CONNECTED/config',
+			values={
+				'name': _node_name + ' Connected',
+				'uniq_id': _node_id + '_CONNECTED',
+				'stat_t': '~' + self._generate_topic('eventTopic', 'Connected'),
+				'json_attr_t': '~' + self._generate_topic('eventTopic', 'Connected'),
+				'pl_on': 'Connected',
+				'pl_off': 'Disconnected',
+				'val_tpl': '{{value_json._event}}',
+				'dev_cla': 'connectivity',
+				'device': _config_device,
+			}
+		)
 
 		##~~ Configure Printing Sensor
-
-		_topic_printing = "homeassistant/binary_sensor/" + _node_id + "_PRINTING/config"
-		_config_printing = {
-			"name": _node_name + " Printing",
-			"uniq_id": _node_id + "_PRINTING",
-			"stat_t": "~" + self._generate_topic("hassTopic", "printing"),
-			"json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
-			"avty_t": "~mqtt",
-			"pl_avail": "connected",
-			"pl_not_avail": "disconnected",
-			"pl_on": "True",
-			"pl_off": "False",
-			"val_tpl": '{{value_json.state.flags.printing}}',
-			"device": _config_device,
-			"~": self._generate_topic("baseTopic", "", full=True)
-		}
-
-		self.mqtt_publish(_topic_printing, _config_printing, allow_queueing=True)
+		self._generate_sensor(
+			topic='homeassistant/binary_sensor' + _node_id + '_PRINTING/config',
+			values={
+				'name': _node_name + ' Printing',
+				'uniq_id': _node_id + '_PRINTING',
+				'stat_t': '~' + self._generate_topic('hassTopic', 'printing'),
+				'json_attr_t': '~' + self._generate_topic('hassTopic', 'printing'),
+				'pl_on': 'True',
+				'pl_off': 'False',
+				'val_tpl': '{{value_json.state.flags.printing}}',
+				'device': _config_device,
+			}
+		)
 
 		##~~ Configure Last Event Sensor
-
-		_topic_last_event = "homeassistant/sensor/" + _node_id + "_EVENT/config"
-		_config_last_event = {
-			"name": _node_name + " Last Event",
-			"uniq_id": _node_id + "_EVENT",
-			"stat_t": "~" + self._generate_topic("eventTopic", "+"),
-			"json_attr_t": "~" + self._generate_topic("eventTopic", "+"),
-			"avty_t": "~mqtt",
-			"pl_avail": "connected",
-			"pl_not_avail": "disconnected",
-			"val_tpl": "{{value_json._event}}",
-			"device": _config_device,
-			"~": self._generate_topic("baseTopic", "", full=True)
-		}
-
-		self.mqtt_publish(_topic_last_event, _config_last_event, allow_queueing=True)
+		self._generate_sensor(
+			topic='homeassistant/sensor/' + _node_id + '_EVENT/config',
+			values={
+				'name': _node_name + ' Last Event',
+				'uniq_id': _node_id + '_EVENT',
+				'stat_t': '~' + self._generate_topic('eventTopic', '+'),
+				'json_attr_t': '~' + self._generate_topic('eventTopic', '+'),
+				'val_tpl': '{{value_json._event}}',
+				'device': _config_device
+			}
+		)
 
 		##~~ Configure Print Status
-
-		_topic_printing_s = "homeassistant/sensor/" + _node_id + "_PRINTING_S/config"
-		_config_printing_s = {
-			"name": _node_name + " Print Status",
-			"uniq_id": _node_id + "_PRINTING_S",
-			"stat_t": "~" + self._generate_topic("hassTopic", "printing"),
-			"json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
-			"avty_t": "~mqtt",
-			"pl_avail": "connected",
-			"pl_not_avail": "disconnected",
-			"val_tpl": "{{value_json.state.text}}",
-			"device": _config_device,
-			"~": self._generate_topic("baseTopic", "", full=True)
-		}
-
-		self.mqtt_publish(_topic_printing_s, _config_printing_s, allow_queueing=True)
+		self._generate_sensor(
+			topic='homeassistant/sensor/' + _node_id + '_PRINTING_S/config',
+			values={
+				'name': _node_name + ' Print Status',
+				'uniq_id': _node_id + '_PRINTING_S',
+				'stat_t': '~' + self._generate_topic('hassTopic', 'printing'),
+				'json_attr_t': '~' + self._generate_topic('hassTopic', 'printing'),
+				'val_tpl': '{{value_json.state.text}}',
+				'device': _config_device
+			}
+		)
 
 		##~~ Configure Print Progress
-
-		_topic_printing_p = "homeassistant/sensor/" + _node_id + "_PRINTING_P/config"
-		_config_printing_p = {
-			"name": _node_name + " Print Progress",
-			"uniq_id": _node_id + "_PRINTING_P",
-			"stat_t": "~" + self._generate_topic("progressTopic", "printing"),
-			"json_attr_t": "~" + self._generate_topic("progressTopic", "printing"),
-			"avty_t": "~mqtt",
-			"pl_avail": "connected",
-			"pl_not_avail": "disconnected",
-			"unit_of_meas": "%",
-			"val_tpl": "{{value_json.progress|float|default(0,true)}}",
-			"device": _config_device,
-			"~": self._generate_topic("baseTopic", "", full=True)
-		}
-
-		self.mqtt_publish(_topic_printing_p, _config_printing_p, allow_queueing=True)
+		self._generate_sensor(
+			topic='homeassistant/sensor/' + _node_id + '_PRINTING_P/config',
+			values={
+				'name': _node_name + ' Print Progress',
+				'uniq_id': _node_id + '_PRINTING_P',
+				'stat_t': '~' + self._generate_topic('progressTopic', 'printing'),
+				'json_attr_t': '~' + self._generate_topic('progressTopic', 'printing'),
+				'unit_of_meas': '%',
+				'val_tpl': '{{value_json.progress|float|default(0,true)}}',
+				'device': _config_device
+			}
+		)
 
 		##~~ Configure Print File
-
-		_topic_printing_f = "homeassistant/sensor/" + _node_id + "_PRINTING_F/config"
-		_config_printing_f = {
-			"name": _node_name + " Print File",
-			"uniq_id": _node_id + "_PRINTING_F",
-			"stat_t": "~" + self._generate_topic("progressTopic", "printing"),
-			"json_attr_t": "~" + self._generate_topic("progressTopic", "printing"),
-			"avty_t": "~mqtt",
-			"pl_avail": "connected",
-			"pl_not_avail": "disconnected",
-			"val_tpl": "{{value_json.path}}",
-			"device": _config_device,
-			"ic": "mdi:file",
-			"~": self._generate_topic("baseTopic", "", full=True)
-		}
-
-		self.mqtt_publish(_topic_printing_f, _config_printing_f, allow_queueing=True)
+		self._generate_sensor(
+			topic='homeassistant/sensor/' + _node_id + '_PRINTING_F/config',
+			values={
+				'name': _node_name + ' Print File',
+				'uniq_id': _node_id + '_PRINTING_F',
+				'stat_t': '~' + self._generate_topic('progressTopic', 'printing'),
+				'json_attr_t': '~' + self._generate_topic('progressTopic', 'printing'),
+				'val_tpl': '{{value_json.path}}',
+				'device': _config_device,
+				'ic': 'mdi:file'
+			}
+		)
 
 		##~~ Configure Print Time
-
-		_topic_printing_t = "homeassistant/sensor/" + _node_id + "_PRINTING_T/config"
-		_config_printing_t = {
-			"name": _node_name + " Print Time",
-			"uniq_id": _node_id + "_PRINTING_T",
-			"stat_t": "~" + self._generate_topic("hassTopic", "printing"),
-			"json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
-			"avty_t": "~mqtt",
-			"pl_avail": "connected",
-			"pl_not_avail": "disconnected",
-			"val_tpl": "{{value_json.progress.printTimeFormatted}}",
-			"device": _config_device,
-			"ic": "mdi:clock-start",
-			"~": self._generate_topic("baseTopic", "", full=True)
-		}
-
-		self.mqtt_publish(_topic_printing_t, _config_printing_t, allow_queueing=True)
+		self._generate_sensor(
+			topic='homeassistant/sensor/' + _node_id + '_PRINTING_T/config',
+			values={
+				'name': _node_name + ' Print Time',
+				'uniq_id': _node_id + '_PRINTING_T',
+				'stat_t': '~' + self._generate_topic('hassTopic', 'printing'),
+				'json_attr_t': '~' + self._generate_topic('hassTopic', 'printing'),
+				'val_tpl': '{{value_json.progress.printTimeFormatted}}',
+				'device': _config_device,
+				'ic': 'mdi:clock-start'
+			}
+		)
 
 		##~~ Configure Print Time Left
-
-		_topic_printing_e = "homeassistant/sensor/" + _node_id + "_PRINTING_E/config"
-		_config_printing_e = {
-			"name": _node_name + " Print Time Left",
-			"uniq_id": _node_id + "_PRINTING_E",
-			"stat_t": "~" + self._generate_topic("hassTopic", "printing"),
-			"json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
-			"avty_t": "~mqtt",
-			"pl_avail": "connected",
-			"pl_not_avail": "disconnected",
-			"val_tpl": "{{value_json.progress.printTimeLeftFormatted}}",
-			"device": _config_device,
-			"ic": "mdi:clock-check-outline",
-			"~": self._generate_topic("baseTopic", "", full=True)
-		}
-
-		self.mqtt_publish(_topic_printing_e, _config_printing_e, allow_queueing=True)
+		self._generate_sensor(
+			topic='homeassistant/sensor/' + _node_id + '_PRINTING_E/config',
+			values={
+				'name': _node_name + ' Print Time Left',
+				'uniq_id': _node_id + '_PRINTING_E',
+				'stat_t': '~' + self._generate_topic('hassTopic', 'printing'),
+				'json_attr_t': '~' + self._generate_topic('hassTopic', 'printing'),
+				'val_tpl': '{{value_json.progress.printTimeLeftFormatted}}',
+				'device': _config_device,
+				'ic': 'mdi:clock-check-outline'
+			}
+		)
 
 		##~~ Configure Print ETA
-
-		_topic_printing_eta = "homeassistant/sensor/" + _node_id + "_PRINTING_ETA/config"
-		_config_printing_eta = {
-			"name": _node_name + " Print Estimated Time",
-			"uniq_id": _node_id + "_PRINTING_ETA",
-			"stat_t": "~" + self._generate_topic("hassTopic", "printing"),
-			"json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
-			"avty_t": "~mqtt",
-			"pl_avail": "connected",
-			"pl_not_avail": "disconnected",
-			"val_tpl": "{{value_json.job.estimatedPrintTimeFormatted}}",
-			"device": _config_device,
-			"~": self._generate_topic("baseTopic", "", full=True)
-		}
-
-		self.mqtt_publish(_topic_printing_eta, _config_printing_eta, allow_queueing=True)
+		self._generate_sensor(
+			topic='homeassistant/sensor/' + _node_id + '_PRINTING_ETA/config',
+			values={
+				'name': _node_name + ' Print Estimated Time',
+				'uniq_id': _node_id + '_PRINTING_ETA',
+				'stat_t': '~' + self._generate_topic('hassTopic', 'printing'),
+				'json_attr_t': '~' + self._generate_topic('hassTopic', 'printing'),
+				'val_tpl': '{{value_json.job.estimatedPrintTimeFormatted}}',
+				'device': _config_device
+			}
+		)
 
 		##~~ Configure Print Current Z
-
-		_topic_printing_z = "homeassistant/sensor/" + _node_id + "_PRINTING_Z/config"
-		_config_printing_z = {
-			"name": _node_name + " Current Z",
-			"uniq_id": _node_id + "_PRINTING_Z",
-			"stat_t": "~" + self._generate_topic("hassTopic", "printing"),
-			"json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
-			"avty_t": "~mqtt",
-			"pl_avail": "connected",
-			"pl_not_avail": "disconnected",
-			"unit_of_meas": "mm",
-			"val_tpl": "{{value_json.currentZ|float}}",
-			"device": _config_device,
-			"ic": "mdi:printer-3d-nozzle",
-			"~": self._generate_topic("baseTopic", "", full=True)
-		}
-
-		self.mqtt_publish(_topic_printing_z, _config_printing_z, allow_queueing=True)
+		self._generate_sensor(
+			topic='homeassistant/sensor/' + _node_id + '_PRINTING_Z/config',
+			values={
+				'name': _node_name + ' Current Z',
+				'uniq_id': _node_id + '_PRINTING_Z',
+				'stat_t': '~' + self._generate_topic('hassTopic', 'printing'),
+				'json_attr_t': "~" + self._generate_topic('hassTopic', 'printing'),
+				'unit_of_meas': 'mm',
+				'val_tpl': '{{value_json.currentZ|float}}',
+				'device': _config_device,
+				'ic': 'mdi:printer-3d-nozzle'
+			}
+		)
 
 		##~~ Configure Slicing Status
-
-		_topic_slicing_p = "homeassistant/sensor/" + _node_id + "_SLICING_P/config"
-		_config_slicing_p = {
-			"name": _node_name + " Slicing Progress",
-			"uniq_id": _node_id + "_SLICING_P",
-			"stat_t": "~" + self._generate_topic("progressTopic", "slicing"),
-			"json_attr_t": "~" + self._generate_topic("progressTopic", "slicing"),
-			"avty_t": "~mqtt",
-			"pl_avail": "connected",
-			"pl_not_avail": "disconnected",
-			"unit_of_meas": "%",
-			"val_tpl": "{{value_json.progress|float|default(0,true)}}",
-			"device": _config_device,
-			"~": self._generate_topic("baseTopic", "", full=True)
-		}
-
-		self.mqtt_publish(_topic_slicing_p, _config_slicing_p, allow_queueing=True)
+		self._generate_sensor(
+			topic='homeassistant/sensor/' + _node_id + '_SLICING_P/config',
+			values={
+				'name': _node_name + ' Slicing Progress',
+				'uniq_id': _node_id + '_SLICING_P',
+				'stat_t': '~' + self._generate_topic('progressTopic', 'slicing'),
+				'json_attr_t': '~' + self._generate_topic('progressTopic', 'slicing'),
+				'unit_of_meas': '%',
+				'val_tpl': '{{value_json.progress|float|default(0,true)}}',
+				'device': _config_device
+			}
+		)
 
 		##~~ Configure Slicing File
-
-		_topic_slicing_f = "homeassistant/sensor/" + _node_id + "_SLICING_F/config"
-		_config_slicing_f = {
-			"name": _node_name + " Slicing File",
-			"uniq_id": _node_id + "_SLICING_F",
-			"stat_t": "~" + self._generate_topic("progressTopic", "slicing"),
-			"json_attr_t": "~" + self._generate_topic("progressTopic", "slicing"),
-			"avty_t": "~mqtt",
-			"pl_avail": "connected",
-			"pl_not_avail": "disconnected",
-			"val_tpl": "{{value_json.source_path}}",
-			"device": _config_device,
-			"ic": "mdi:file",
-			"~": self._generate_topic("baseTopic", "", full=True)
-		}
-
-		self.mqtt_publish(_topic_slicing_f, _config_slicing_f, allow_queueing=True)
+		self._generate_sensor(
+			topic='homeassistant/sensor/' + _node_id + '_SLICING_F/config',
+			values={
+				'name': _node_name + ' Slicing File',
+				'uniq_id': _node_id + '_SLICING_F',
+				'stat_t': '~' + self._generate_topic('progressTopic', 'slicing'),
+				'json_attr_t': '~' + self._generate_topic('progressTopic', 'slicing'),
+				'val_tpl': '{{value_json.source_path}}',
+				'device': _config_device,
+				'ic': 'mdi:file'
+			}
+		)
 
 		##~~ Tool Temperature
 		_e = self._printer_profile_manager.get_current_or_default()["extruder"]["count"]
 		for x in range(_e):
-			_topic_e_temp = "homeassistant/sensor/" + _node_id + "_TOOL" + str(x) + "/config"
-			_config_e_temp = {
-				"name": _node_name + " Tool " + str(x) + " Temperature",
-				"uniq_id": _node_id + "_TOOL" + str(x),
-				"stat_t": "~" + self._generate_topic("temperatureTopic", "tool" + str(x)),
-				"json_attr_t": "~" + self._generate_topic("temperatureTopic", "tool" + str(x)),
-				"avty_t": "~mqtt",
-				"pl_avail": "connected",
-				"pl_not_avail": "disconnected",
-				"unit_of_meas": "°C",
-				"val_tpl": "{{value_json.actual|float}}",
-				"device": _config_device,
-				"dev_cla": "temperature",
-				"~": self._generate_topic("baseTopic", "", full=True)
-			}
-
-			self.mqtt_publish(_topic_e_temp, _config_e_temp, allow_queueing=True)
+			self._generate_sensor(
+				topic='homeassistant/sensor/' + _node_id + '_TOOL' + str(x) + '/config',
+				values={
+					'name': _node_name + ' Tool ' + str(x) + ' Temperature',
+					'uniq_id': _node_id + '_TOOL' + str(x),
+					'stat_t': '~' + self._generate_topic('temperatureTopic', 'tool' + str(x)),
+					'json_attr_t': '~' + self._generate_topic('temperatureTopic', 'tool' + str(x)),
+					'unit_of_meas': '°C',
+					'val_tpl': '{{value_json.actual|float}}',
+					'device': _config_device,
+					'dev_cla': "temperature"
+				}
+			)
 
 		##~~ Bed Temperature
+		self._generate_sensor(
+			topic='homeassistant/sensor/' + _node_id + '_BED/config',
+			values={
+				'name': _node_name + ' Bed Temperature',
+				'uniq_id': _node_id + '_BED',
+				'stat_t': '~' + self._generate_topic('temperatureTopic', 'bed'),
+				'json_attr_t': '~' + self._generate_topic('temperatureTopic', 'bed'),
+				'unit_of_meas': '°C',
+				'val_tpl': '{{value_json.actual|float}}',
+				'device': _config_device,
+				'dev_cla': 'temperature'
+			}
+		)
 
-		_topic_bed_temp = "homeassistant/sensor/" + _node_id + "_BED/config"
-		_config_bed_temp = {
-			"name": _node_name + " Bed Temperature",
-			"uniq_id": _node_id + "_BED",
-			"stat_t": "~" + self._generate_topic("temperatureTopic", "bed"),
-			"json_attr_t": "~" + self._generate_topic("temperatureTopic", "bed"),
-			"avty_t": "~mqtt",
-			"pl_avail": "connected",
-			"pl_not_avail": "disconnected",
-			"unit_of_meas": "°C",
-			"val_tpl": "{{value_json.actual|float}}",
-			"device": _config_device,
-			"dev_cla": "temperature",
-			"~": self._generate_topic("baseTopic", "", full=True)
+	def _generate_sensor(self, topic, values):
+		payload = {
+			'avty_t': '~' + self._generate_topic('lwTopic', ''),
+			'pl_avail': 'connected',
+			'pl_not_avail': 'disconnected',
+			'~': self._generate_topic('baseTopic', '', full=True)
 		}
+		payload.update(values)
+		self.mqtt_publish(topic, payload, allow_queueing=True)
 
-		self.mqtt_publish(_topic_bed_temp, _config_bed_temp, allow_queueing=True)
-
-		##~~ For people who do not have retain setup, need to do this again to make sensors available
-		_connected_topic = self._generate_topic("lwTopic", "", full=True)
-		self.mqtt_publish(_connected_topic, "connected", allow_queueing=True)
-
-		##~~ Setup the default printer states
-		self.on_print_progress("", "", 0)
+	def _generate_device_config(self, _node_id, _node_name):
+		_config_device = {
+			'ids': [_node_id],
+			'cns': [['mac', self._get_mac_address()]],
+			'name': _node_name,
+			'mf': 'Clifford Roche',
+			'mdl': 'HomeAssistant Discovery for OctoPrint',
+			'sw': self._plugin_version
+		}
+		return _config_device
 
 	def _generate_printer_status(self):
 
@@ -435,6 +385,127 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 			self.mqtt_publish_with_timestamp(self._generate_topic("hassTopic", "printing", full=True), data,
 										 	 allow_queueing=True)
 
+	def _on_emergency_stop(self, topic, message, retained=None, qos=None, *args, **kwargs):
+		self._logger.debug('Emergency stop message received: ' + str(message))
+		if message:
+			self._printer.commands('M112')
+
+	def _on_cancel_print(self, topic, message, retained=None, qos=None, *args, **kwargs):
+		self._logger.debug('Cancel print message received: ' + str(message))
+		if message:
+			self._printer.cancel_print()
+
+	def _on_pause_print(self, topic, message, retained=None, qos=None, *args, **kwargs):
+		self._logger.debug('Pause print message received: ' + str(message))
+		if message:
+			self._printer.pause_print()
+		else:
+			self._printer.resume_print()
+
+	def _on_shutdown_system(self, topic, message, retained=None, qos=None, *args, **kwargs):
+		self._logger.debug('Shutdown print message received: ' + str(message))
+		if message:
+			shutdown_command = self._settings.global_get(["server", "commands", "systemShutdownCommand"])
+			try:
+				import sarge
+				params = {'async': True}
+				sarge.run(shutdown_command, **params)
+			except Exception as e:
+				self._logger.info('Unable to run shutdown command: ' + e)
+				pass
+
+	def _generate_device_controls(self, subscribe=False):
+
+		s = settings()
+		name_defaults = dict(appearance=dict(name="OctoPrint"))
+
+		_node_name = s.get(["appearance", "name"], defaults=name_defaults)
+		_node_uuid = self._settings.get(["unique_id"])
+		_node_id = (_node_uuid[:6]).upper()
+
+		_config_device = self._generate_device_config(_node_id, _node_name)
+
+		# Emergency stop
+		if subscribe:
+			self.mqtt_subscribe(self._generate_topic("controlTopic", "stop", full=True), self._on_emergency_stop)
+
+		self._generate_sensor(
+			topic='homeassistant/switch/' + _node_id + '_STOP/config',
+			values={
+				'name': _node_name + ' Emergency Stop',
+				'uniq_id': _node_id + '_STOP',
+				'cmd_t': '~' + self._generate_topic('controlTopic', 'stop'),
+				'stat_t': '~' + self._generate_topic('controlTopic', 'stop'),
+				'pl_off': 'False',
+				'pl_on': 'True',
+				'val_tpl': '{{False}}',
+				'device': _config_device,
+				'ic': 'mdi:alert-octagon'
+			}
+		)
+
+		# Cancel print
+		if subscribe:
+			self.mqtt_subscribe(self._generate_topic("controlTopic", "cancel", full=True), self._on_cancel_print)
+
+		self._generate_sensor(
+			topic='homeassistant/switch/' + _node_id + '_CANCEL/config',
+			values={
+				'name': _node_name + ' Cancel Print',
+				'uniq_id': _node_id + '_CANCEL',
+				'cmd_t': '~' + self._generate_topic('controlTopic', 'cancel'),
+				'stat_t': '~' + self._generate_topic('controlTopic', 'cancel'),
+				'avty_t': '~' + self._generate_topic('hassTopic', 'is_printing'),
+				'pl_avail': 'True',
+				'pl_not_avail': 'False',
+				'pl_off': 'False',
+				'pl_on': 'True',
+				'val_tpl': '{{False}}',
+				'device': _config_device,
+				'ic': 'mdi:cancel'
+			}
+		)
+
+		# Pause / resume print
+		if subscribe:
+			self.mqtt_subscribe(self._generate_topic("controlTopic", "pause", full=True), self._on_pause_print)
+
+		self._generate_sensor(
+			topic='homeassistant/switch/' + _node_id + '_PAUSE/config',
+			values={
+				'name': _node_name + ' Pause Print',
+				'uniq_id': _node_id + '_PAUSE',
+				'cmd_t': '~' + self._generate_topic('controlTopic', 'pause'),
+				'stat_t': '~' + self._generate_topic('hassTopic', 'is_paused'),
+				'avty_t': '~' + self._generate_topic('hassTopic', 'is_printing'),
+				'pl_avail': 'True',
+				'pl_not_avail': 'False',
+				'pl_off': 'False',
+				'pl_on': 'True',
+				'device': _config_device,
+				'ic': 'mdi:pause'
+			}
+		)
+
+		# Shutdown OctoPrint
+		if subscribe:
+			self.mqtt_subscribe(self._generate_topic("controlTopic", "shutdown", full=True), self._on_shutdown_system)
+
+		self._generate_sensor(
+			topic='homeassistant/switch/' + _node_id + '_SHUTDOWN/config',
+			values={
+				'name': _node_name + ' Shutdown System',
+				'uniq_id': _node_id + '_SHUTDOWN',
+				'cmd_t': '~' + self._generate_topic('controlTopic', 'shutdown'),
+				'stat_t': '~' + self._generate_topic('controlTopic', 'shutdown'),
+				'pl_off': 'False',
+				'pl_on': 'True',
+				'val_tpl': '{{False}}',
+				'device': _config_device,
+				'ic': 'mdi:power'
+			}
+		)
+
 	##~~ EventHandlerPlugin API
 
 	def on_event(self, event, payload):
@@ -451,11 +522,23 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 
 		if event == Events.PRINT_STARTED:
 			if self.update_timer:
+				self.mqtt_publish(self._generate_topic("hassTopic", "is_printing", full=True), 'True',
+								  allow_queueing=True)
 				self.update_timer.start()
 
 		elif event in (Events.PRINT_DONE, Events.PRINT_FAILED, Events.PRINT_CANCELLED):
 			if self.update_timer:
+				self.mqtt_publish(self._generate_topic("hassTopic", "is_printing", full=True), 'False',
+								  allow_queueing=True)
 				self.update_timer.cancel()
+
+		if event == Events.PRINT_PAUSED:
+			self.mqtt_publish(self._generate_topic("hassTopic", "is_paused", full=True), 'True',
+							  allow_queueing=True)
+
+		elif event in (Events.PRINT_RESUMED, Events.PRINT_STARTED):
+			self.mqtt_publish(self._generate_topic("hassTopic", "is_paused", full=True), 'False',
+							  allow_queueing=True)
 
 	##~~ ProgressPlugin API
 
