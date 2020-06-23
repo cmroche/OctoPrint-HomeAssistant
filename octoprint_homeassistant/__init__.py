@@ -166,7 +166,6 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				'name': _node_name + ' Printing',
 				'uniq_id': _node_id + '_PRINTING',
 				'stat_t': '~' + self._generate_topic('hassTopic', 'printing'),
-				'json_attr_t': '~' + self._generate_topic('hassTopic', 'printing'),
 				'pl_on': 'True',
 				'pl_off': 'False',
 				'val_tpl': '{{value_json.state.flags.printing}}',
@@ -181,7 +180,6 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				'name': _node_name + ' Last Event',
 				'uniq_id': _node_id + '_EVENT',
 				'stat_t': '~' + self._generate_topic('eventTopic', '+'),
-				'json_attr_t': '~' + self._generate_topic('eventTopic', '+'),
 				'val_tpl': '{{value_json._event}}',
 				'device': _config_device
 			}
@@ -195,6 +193,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				'uniq_id': _node_id + '_PRINTING_S',
 				'stat_t': '~' + self._generate_topic('hassTopic', 'printing'),
 				'json_attr_t': '~' + self._generate_topic('hassTopic', 'printing'),
+				'json_attr_tpl': '{{value_json.state|tojson}}',
 				'val_tpl': '{{value_json.state.text}}',
 				'device': _config_device
 			}
@@ -207,7 +206,6 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				'name': _node_name + ' Print Progress',
 				'uniq_id': _node_id + '_PRINTING_P',
 				'stat_t': '~' + self._generate_topic('progressTopic', 'printing'),
-				'json_attr_t': '~' + self._generate_topic('progressTopic', 'printing'),
 				'unit_of_meas': '%',
 				'val_tpl': '{{value_json.progress|float|default(0,true)}}',
 				'device': _config_device
@@ -222,6 +220,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				'uniq_id': _node_id + '_PRINTING_F',
 				'stat_t': '~' + self._generate_topic('progressTopic', 'printing'),
 				'json_attr_t': '~' + self._generate_topic('progressTopic', 'printing'),
+				'json_attr_tpl': '{{value_json.location|tojson}}',
 				'val_tpl': '{{value_json.path}}',
 				'device': _config_device,
 				'ic': 'mdi:file'
@@ -236,6 +235,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				'uniq_id': _node_id + '_PRINTING_T',
 				'stat_t': '~' + self._generate_topic('hassTopic', 'printing'),
 				'json_attr_t': '~' + self._generate_topic('hassTopic', 'printing'),
+				'json_attr_tpl': '{{value_json.progress.printTime|tojson}}',
 				'val_tpl': '{{value_json.progress.printTimeFormatted}}',
 				'device': _config_device,
 				'ic': 'mdi:clock-start'
@@ -250,6 +250,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				'uniq_id': _node_id + '_PRINTING_E',
 				'stat_t': '~' + self._generate_topic('hassTopic', 'printing'),
 				'json_attr_t': '~' + self._generate_topic('hassTopic', 'printing'),
+				'json_attr_tpl': '{{value_json.progress.printTimeLeft|tojson}}',
 				'val_tpl': '{{value_json.progress.printTimeLeftFormatted}}',
 				'device': _config_device,
 				'ic': 'mdi:clock-check-outline'
@@ -264,6 +265,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				'uniq_id': _node_id + '_PRINTING_ETA',
 				'stat_t': '~' + self._generate_topic('hassTopic', 'printing'),
 				'json_attr_t': '~' + self._generate_topic('hassTopic', 'printing'),
+				'json_attr_tpl': '{{value_json.job|tojson}}',
 				'val_tpl': '{{value_json.job.estimatedPrintTimeFormatted}}',
 				'device': _config_device
 			}
@@ -276,7 +278,6 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				'name': _node_name + ' Current Z',
 				'uniq_id': _node_id + '_PRINTING_Z',
 				'stat_t': '~' + self._generate_topic('hassTopic', 'printing'),
-				'json_attr_t': "~" + self._generate_topic('hassTopic', 'printing'),
 				'unit_of_meas': 'mm',
 				'val_tpl': '{{value_json.currentZ|float}}',
 				'device': _config_device,
@@ -291,7 +292,6 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				'name': _node_name + ' Slicing Progress',
 				'uniq_id': _node_id + '_SLICING_P',
 				'stat_t': '~' + self._generate_topic('progressTopic', 'slicing'),
-				'json_attr_t': '~' + self._generate_topic('progressTopic', 'slicing'),
 				'unit_of_meas': '%',
 				'val_tpl': '{{value_json.progress|float|default(0,true)}}',
 				'device': _config_device
@@ -305,7 +305,6 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				'name': _node_name + ' Slicing File',
 				'uniq_id': _node_id + '_SLICING_F',
 				'stat_t': '~' + self._generate_topic('progressTopic', 'slicing'),
-				'json_attr_t': '~' + self._generate_topic('progressTopic', 'slicing'),
 				'val_tpl': '{{value_json.source_path}}',
 				'device': _config_device,
 				'ic': 'mdi:file'
@@ -321,9 +320,20 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 					'name': _node_name + ' Tool ' + str(x) + ' Temperature',
 					'uniq_id': _node_id + '_TOOL' + str(x),
 					'stat_t': '~' + self._generate_topic('temperatureTopic', 'tool' + str(x)),
-					'json_attr_t': '~' + self._generate_topic('temperatureTopic', 'tool' + str(x)),
 					'unit_of_meas': '°C',
 					'val_tpl': '{{value_json.actual|float}}',
+					'device': _config_device,
+					'dev_cla': "temperature"
+				}
+			)
+			self._generate_sensor(
+				topic='homeassistant/sensor/' + _node_id + '_TOOL_TARGET' + str(x) + '/config',
+				values={
+					'name': _node_name + ' Tool ' + str(x) + ' Target',
+					'uniq_id': _node_id + '_TOOL_TARGET' + str(x),
+					'stat_t': '~' + self._generate_topic('temperatureTopic', 'tool' + str(x)),
+					'unit_of_meas': '°C',
+					'val_tpl': '{{value_json.target|float}}',
 					'device': _config_device,
 					'dev_cla': "temperature"
 				}
@@ -336,9 +346,20 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				'name': _node_name + ' Bed Temperature',
 				'uniq_id': _node_id + '_BED',
 				'stat_t': '~' + self._generate_topic('temperatureTopic', 'bed'),
-				'json_attr_t': '~' + self._generate_topic('temperatureTopic', 'bed'),
 				'unit_of_meas': '°C',
 				'val_tpl': '{{value_json.actual|float}}',
+				'device': _config_device,
+				'dev_cla': 'temperature'
+			}
+		)
+		self._generate_sensor(
+			topic='homeassistant/sensor/' + _node_id + '_BED_TARGET/config',
+			values={
+				'name': _node_name + ' Bed Target',
+				'uniq_id': _node_id + '_BED_TARGET',
+				'stat_t': '~' + self._generate_topic('temperatureTopic', 'bed'),
+				'unit_of_meas': '°C',
+				'val_tpl': '{{value_json.target|float}}',
 				'device': _config_device,
 				'dev_cla': 'temperature'
 			}
