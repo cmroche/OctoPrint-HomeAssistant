@@ -426,8 +426,35 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				params = {'async': True}
 				sarge.run(shutdown_command, **params)
 			except Exception as e:
-				self._logger.info('Unable to run shutdown command: ' + e)
-				pass
+				self._logger.info('Unable to run shutdown command: ' + str(e))
+
+	def _on_home(self, topic, message, retained=None, qos=None, *args, **kwargs):
+		self._logger.debug('Homing printer: ' + str(message))
+		if message:
+			try:
+				home_payload = json.loads(message)
+				axes = set(home_payload) & set(['x', 'y', 'z', 'e'])
+				self._printer.home(list(axes))
+			except Exception as e:
+				self._logger.error('Unable to run home command: ' + str(e))
+
+	def _on_jog(self, topic, message, retained=None, qos=None, *args, **kwargs):
+		self._logger.debug('Jogging printer: ' + str(message))
+		if message:
+			try:
+				jog_payload = json.loads(message)
+				axes_keys = set(jog_payload.keys()) & set(['x', 'y', 'z'])
+				axes = {k:v for (k,v) in jog_payload.items() if k in axes_keys}
+				self._printer.jog(axes, jog_payload.get('speed'))
+			except Exception as e:
+				self._logger.error('Unable to run jog command: ' + str(e))
+
+	def _on_command(self, topic, message, retained=None, qos=None, *args, **kwargs):
+		self._logger.debug('Jogging received gcode commands')
+		try:
+			self._printer.commands(message)
+		except Exception as e:
+			self._logger.error('Unable to run printer commands: ' + str(e))
 
 	def _generate_device_controls(self, subscribe=False):
 
@@ -520,6 +547,13 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				'ic': 'mdi:power'
 			}
 		)
+
+		# Command topics that don't have a suitable sensor configuration. These can be used
+		# through the MQTT.publish service call though.
+		if subscribe:
+			self.mqtt_subscribe(self._generate_topic("controlTopic", "jog", full=True), self._on_jog)
+			self.mqtt_subscribe(self._generate_topic("controlTopic", "home", full=True), self._on_home)
+			self.mqtt_subscribe(self._generate_topic("controlTopic", "commands", full=True), self._on_command)
 
 	##~~ EventHandlerPlugin API
 
