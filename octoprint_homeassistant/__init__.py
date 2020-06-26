@@ -114,7 +114,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 		# Don't rely on this, the message may be disabled.
 		if message == "connected":
 			self._generate_device_registration()
-			self._generate_device_controls(sunscribe=False)
+			self._generate_device_controls(subscribe=False)
 
 	def _generate_topic(self, topic_type, topic, full=False):
 		self._logger.debug("Generating topic for " + topic_type + ", " + topic)
