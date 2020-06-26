@@ -161,7 +161,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 
 		##~~ Configure Printing Sensor
 		self._generate_sensor(
-			topic='homeassistant/binary_sensor' + _node_id + '_PRINTING/config',
+			topic='homeassistant/binary_sensor/' + _node_id + '_PRINTING/config',
 			values={
 				'name': _node_name + ' Printing',
 				'uniq_id': _node_id + '_PRINTING',
