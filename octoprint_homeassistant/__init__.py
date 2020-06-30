@@ -247,7 +247,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				'stat_t': '~' + self._generate_topic('hassTopic', 'printing'),
 				'val_tpl': '{{value_json.progress.printTimeLeftFormatted}}',
 				'device': _config_device,
-				'ic': 'mdi:clock-check-outline'
+				'ic': 'mdi:clock-end'
 			}
 		)
 
@@ -275,7 +275,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				'unit_of_meas': 'mm',
 				'val_tpl': '{{value_json.currentZ|float}}',
 				'device': _config_device,
-				'ic': 'mdi:printer-3d-nozzle'
+				'ic': 'mdi:axis-z-arrow'
 			}
 		)
 
@@ -317,7 +317,8 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 					'unit_of_meas': '°C',
 					'val_tpl': '{{value_json.actual|float}}',
 					'device': _config_device,
-					'dev_cla': "temperature"
+					'dev_cla': 'temperature',
+					'ic': 'mdi:printer-3d-nozzle'
 				}
 			)
 			self._generate_sensor(
@@ -329,7 +330,8 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 					'unit_of_meas': '°C',
 					'val_tpl': '{{value_json.target|float}}',
 					'device': _config_device,
-					'dev_cla': "temperature"
+					'dev_cla': 'temperature',
+					'ic': 'mdi:printer-3d-nozzle'
 				}
 			)
 
@@ -343,7 +345,8 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				'unit_of_meas': '°C',
 				'val_tpl': '{{value_json.actual|float}}',
 				'device': _config_device,
-				'dev_cla': 'temperature'
+				'dev_cla': 'temperature',
+				'ic': 'mdi:radiator'
 			}
 		)
 		self._generate_sensor(
@@ -355,7 +358,8 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 				'unit_of_meas': '°C',
 				'val_tpl': '{{value_json.target|float}}',
 				'device': _config_device,
-				'dev_cla': 'temperature'
+				'dev_cla': 'temperature',
+				'ic': 'mdi:radiator'
 			}
 		)
 
