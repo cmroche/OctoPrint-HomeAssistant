@@ -46,6 +46,7 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 						  octoprint.plugin.WizardPlugin):
 
 	def __init__(self):
+		self._logger = logging.getLogger(__name__)
 		self.mqtt_publish = None
 		self.mqtt_publish_with_timestamp = None
 		self.mqtt_subcribe = None
@@ -60,9 +61,6 @@ class HomeassistantPlugin(octoprint.plugin.SettingsPlugin,
 		return SETTINGS_DEFAULTS
 
 	##~~ StartupPlugin mixin
-
-	def on_startup(self, host, port):
-		self._logger.setLevel(logging.DEBUG)
 
 	def on_after_startup(self):
 		if self._settings.get(["unique_id"]) is None:
