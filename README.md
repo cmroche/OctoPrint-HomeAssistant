@@ -207,6 +207,9 @@ tap_action:
 #### Safe shutdown of Raspberry Pi, then printer
 Sometimes the SD card can be thrashed when not shutting down the RPI gracefully, this automation calls system shutdown in OctoPrint, waits 2 minutes, then turns off the printer's switch.
 
+##### Caveat
+One user (thanks @pinkywafer) tested shutdown time and found it took from 5 seconds to 2+ minutes. Adjust the timeout to your needs, keep a backup if you use shorter values.
+
 ```yaml
 '1592948735781':
   alias: Ender 3 Safe Shutdown
@@ -215,6 +218,7 @@ Sometimes the SD card can be thrashed when not shutting down the RPI gracefully,
     domain: switch
     entity_id: switch.ender_3_shutdown_system
     type: turn_on
+  - wait_template: "{{ is_state('sensor.ender_3_print_status', 'unavailable' }}
   - delay: 00:02:00
   - device_id: 179ae3ecd31f4798abe05436a3f04d43
     domain: switch
