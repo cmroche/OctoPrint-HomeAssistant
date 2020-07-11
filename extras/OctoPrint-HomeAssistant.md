@@ -10,7 +10,7 @@ license: AGPLv3
 # TODO
 date: today's date in format YYYY-MM-DD, e.g. 2015-04-21
 
-homepage: https://github.com/cmroche/OctoPrint-HomeAsisstant
+homepage: https://github.com/cmroche/OctoPrint-HomeAssistant
 source: https://github.com/cmroche/OctoPrint-HomeAssistant
 archive: https://github.com/cmroche/OctoPrint-HomeAssistant/archive/master.zip
 
@@ -21,21 +21,21 @@ archive: https://github.com/cmroche/OctoPrint-HomeAssistant/archive/master.zip
 
 # TODO
 tags:
-- a list
-- of tags
-- that apply
-- to your plugin
-- (take a look at the existing plugins for what makes sense here)
+  - a list
+  - of tags
+  - that apply
+  - to your plugin
+  - (take a look at the existing plugins for what makes sense here)
 
 # TODO
 screenshots:
-- url: url of a screenshot, /assets/img/...
-  alt: alt-text of a screenshot
-  caption: caption of a screenshot
-- url: url of another screenshot, /assets/img/...
-  alt: alt-text of another screenshot
-  caption: caption of another screenshot
-- ...
+  - url: url of a screenshot, /assets/img/...
+    alt: alt-text of a screenshot
+    caption: caption of a screenshot
+  - url: url of another screenshot, /assets/img/...
+    alt: alt-text of another screenshot
+    caption: caption of another screenshot
+  - ...
 
 # TODO
 featuredimage: url of a featured image for your plugin, /assets/img/...
@@ -46,7 +46,6 @@ featuredimage: url of a featured image for your plugin, /assets/img/...
 # "compatibility" block if this is not the case.
 
 compatibility:
-
   # List of compatible versions
   #
   # A single version number will be interpretated as a minimum version requirement,
@@ -58,7 +57,7 @@ compatibility:
   # OctoPrint versions being supported.
 
   octoprint:
-  - 1.2.0
+    - 1.2.0
 
   # List of compatible operating systems
   #
@@ -78,10 +77,10 @@ compatibility:
   # operating systems being supported.
 
   os:
-  - linux
-  - windows
-  - macos
-  - freebsd
+    - linux
+    - windows
+    - macos
+    - freebsd
 
   # Compatible Python version
   #
@@ -93,7 +92,6 @@ compatibility:
   # is EOL), leave at ">=2.7,<3"
 
   python: ">=2.7,<3"
-
 ---
 
 **TODO**: Longer description of your plugin, configuration examples etc. This part will be visible on the page at
