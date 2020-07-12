@@ -154,6 +154,8 @@ camera:
 
 There are services enabling homing, jogging, and sending extra GCODE commands directly to the printer enabling advanced scripts, add new buttons for extended functionality.
 
+Remember to change `octoPrint/` in the examples below to the correct base topic configured in the **OctoPrint-MQTT** plugin.
+
 #### Homing a printer from Lovelace
 
 ```yaml
@@ -163,7 +165,7 @@ tap_action:
   action: call-service
   service: mqtt.publish
   service_data:
-    topic: octoprint/virtual_p/hassControl/home
+    topic: octoPrint/hassControl/home
     payload: '["x", "y", "z"]'
 ```
 
@@ -176,7 +178,7 @@ tap_action:
   action: call-service
   service: mqtt.publish
   service_data:
-    topic: octoprint/virtual_p/hassControl/jog
+    topic: octoPrint/hassControl/jog
     payload: '{"x": 0.1 }'
 ```
 
@@ -189,7 +191,7 @@ tap_action:
   action: call-service
   service: mqtt.publish
   service_data:
-    topic: octoprint/virtual_p/hassControl/commands
+    topic: octoPrint/hassControl/commands
     payload: 'G29'
 ```
 
