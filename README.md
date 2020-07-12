@@ -180,6 +180,19 @@ tap_action:
     payload: '{"x": 0.1 }'
 ```
 
+#### Send GCODE from Lovelace
+
+```yaml
+type: entity-button
+name: Level Bed
+tap_action:
+  action: call-service
+  service: mqtt.publish
+  service_data:
+    topic: octoprint/virtual_p/hassControl/commands
+    payload: 'G29'
+```
+
 #### Auto-shutdown once the printer has cooled down
 
 ```yaml
