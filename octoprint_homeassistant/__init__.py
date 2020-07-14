@@ -24,7 +24,7 @@ from octoprint.util import RepeatedTimer
 # Take a look at the documentation on what other plugin mixins are available.
 
 
-SETTINGS_DEFAULTS = dict(unique_id=None)
+SETTINGS_DEFAULTS = dict(unique_id=None, node_id=None)
 MQTT_DEFAULTS = dict(
     publish=dict(
         baseTopic="octoPrint/",
@@ -61,14 +61,26 @@ class HomeassistantPlugin(
     def get_settings_defaults(self):
         return SETTINGS_DEFAULTS
 
+    def get_settings_version(self):
+        return 1
+
+    def on_settings_migrate(self, target, current):
+        if target == 1:  # This is the first version
+            _node_uuid = self._settings.get(["unique_id"])
+            if _node_uuid:
+                _node_id = (_node_uuid[:6]).upper()
+                self._settings.set(["node_id"], _node_id)
+
     ##~~ StartupPlugin mixin
 
     def on_after_startup(self):
         if self._settings.get(["unique_id"]) is None:
             import uuid
 
-            _uid = str(uuid.uuid4())
+            _uuid = uuid.uuid4()
+            _uid = str(_uuid)
             self._settings.set(["unique_id"], _uid)
+            self._settings.set(["node_id"], _uuid.hex)
             settings().save()
 
         helpers = self._plugin_manager.get_helpers(
@@ -162,8 +174,7 @@ class HomeassistantPlugin(
         name_defaults = dict(appearance=dict(name="OctoPrint"))
 
         _node_name = s.get(["appearance", "name"], defaults=name_defaults)
-        _node_uuid = self._settings.get(["unique_id"])
-        _node_id = (_node_uuid[:6]).upper()
+        _node_id = self._settings.get(["node_id"])
 
         _config_device = self._generate_device_config(_node_id, _node_name)
 
@@ -514,8 +525,7 @@ class HomeassistantPlugin(
         name_defaults = dict(appearance=dict(name="OctoPrint"))
 
         _node_name = s.get(["appearance", "name"], defaults=name_defaults)
-        _node_uuid = self._settings.get(["unique_id"])
-        _node_id = (_node_uuid[:6]).upper()
+        _node_id = self._settings.get(["node_id"])
 
         _config_device = self._generate_device_config(_node_id, _node_name)
 
