@@ -26,6 +26,16 @@ You will also need the [OctoPrint-MQTT plugin](https://github.com/OctoPrint/Octo
 - Current Z height
 - Formatted print time, and print time remaining
 
+## Multiple Instances
+
+It is possible to use this plugin with multiple instances, but the instance and HA configurations must be carefully setup to work correctly.
+
+If configuration isn't working, check the caveats below. Shutdown both OctoPrint instance, delete devices registered in HA--they will not update otherwise, and restart your instances after changes to the configuration are made.
+
+- Do not copy the configuration files from one instance to another, it'll cause conflicts with unique IDs for devices. Change the `unique_id` for the homeassistant plugin section to fix.
+- MQTT plugins **must** have unique base topics for each instance.
+- OctoPrint instances should have unique names, though not strictly a requirement device names in HA use the instance name.
+
 ## Examples
 
 ![alt text](images/example1.png "HomeAssistant Example")
@@ -192,7 +202,7 @@ tap_action:
   service: mqtt.publish
   service_data:
     topic: octoPrint/hassControl/commands
-    payload: 'G29'
+    payload: "G29"
 ```
 
 #### Auto-shutdown once the printer has cooled down
