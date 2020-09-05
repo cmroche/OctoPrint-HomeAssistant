@@ -129,6 +129,14 @@ class HomeassistantPlugin(
         )
         self.on_print_progress("", "", 0)
 
+        state, _, _, _ = self._printer.get_current_connection()
+        state_connected = "Connected" if state == "Closed" else "Disconnected"
+        self.mqtt_publish(
+            self._generate_topic("eventTopic", "Connected", full=True),
+            "Disconnected",
+            allow_queueing=True,
+        )
+
     def _get_mac_address(self):
         import uuid
 
