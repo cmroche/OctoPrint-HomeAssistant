@@ -130,7 +130,7 @@ class HomeassistantPlugin(
         self.on_print_progress("", "", 0)
 
         state, _, _, _ = self._printer.get_current_connection()
-        state_connected = "Connected" if state == "Closed" else "Disconnected"
+        state_connected = "Disconnected" if state == "Closed" else "Connected"
         self.mqtt_publish(
             self._generate_topic("eventTopic", "Connected", full=True),
             state_connected,
