@@ -133,7 +133,7 @@ class HomeassistantPlugin(
         state_connected = "Connected" if state == "Closed" else "Disconnected"
         self.mqtt_publish(
             self._generate_topic("eventTopic", "Connected", full=True),
-            "Disconnected",
+            state_connected,
             allow_queueing=True,
         )
 
