@@ -542,6 +542,8 @@ class HomeassistantPlugin(
 
         _config_device = self._generate_device_config(_node_id, _node_name)
 
+        _discovery_topic = self._settings.get(["discovery_topic"])
+
         # Emergency stop
         if subscribe:
             self.mqtt_subscribe(
