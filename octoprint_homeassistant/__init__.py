@@ -499,8 +499,7 @@ class HomeassistantPlugin(
             try:
                 import sarge
 
-                params = {"async": True}
-                sarge.run(shutdown_command, **params)
+                sarge.run(shutdown_command, async_=True)
             except Exception as e:
                 self._logger.info("Unable to run shutdown command: " + str(e))
 
