@@ -154,10 +154,10 @@ This will create a camera entity as `camera.octoprint_ender_3`
 
 ```yaml
 camera:
-  - platform: mjpeg
+  - platform: generic
     name: OctoPrint Ender 3
     still_image_url: http://octoprint.local/webcam/?action=snapshot
-    mjpeg_url: http://octoprint.local/webcam/?action=stream
+    stream_source: http://octoprint.local/webcam/?action=stream
 ```
 
 ### Sending commands to the printer
@@ -247,7 +247,7 @@ One user (thanks @pinkywafer) tested shutdown time and found it took from 5 seco
       domain: switch
       entity_id: switch.ender_3_shutdown_system
       type: turn_on
-    - wait_template: "{{ is_state('sensor.ender_3_print_status', 'unavailable' }}"
+    - wait_template: "{{ is_state('sensor.ender_3_print_status', 'unavailable') }}"
     - delay: 00:02:00
     - device_id: 179ae3ecd31f4798abe05436a3f04d43
       domain: switch
