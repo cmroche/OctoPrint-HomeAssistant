@@ -24,11 +24,7 @@ from octoprint.util import RepeatedTimer
 # Take a look at the documentation on what other plugin mixins are available.
 
 
-SETTINGS_DEFAULTS = dict(
-    unique_id=None,
-    node_id=None,
-    discovery_topic="homeassistant"
-)
+SETTINGS_DEFAULTS = dict(unique_id=None, node_id=None, discovery_topic="homeassistant")
 MQTT_DEFAULTS = dict(
     publish=dict(
         baseTopic="octoPrint/",
@@ -132,14 +128,7 @@ class HomeassistantPlugin(
             allow_queueing=True,
         )
         self.on_print_progress("", "", 0)
-
-        state, _, _, _ = self._printer.get_current_connection()
-        state_connected = "Disconnected" if state == "Closed" else "Connected"
-        self.mqtt_publish(
-            self._generate_topic("eventTopic", "Connected", full=True),
-            state_connected,
-            allow_queueing=True,
-        )
+        self._generate_connection_status()
 
     def _get_mac_address(self):
         import uuid
@@ -193,12 +182,12 @@ class HomeassistantPlugin(
 
         ##~~ Configure Connected Sensor
         self._generate_sensor(
-            topic = _discovery_topic + "/binary_sensor/" + _node_id + "_CONNECTED/config",
+            topic=_discovery_topic + "/binary_sensor/" + _node_id + "_CONNECTED/config",
             values={
                 "name": _node_name + " Connected",
                 "uniq_id": _node_id + "_CONNECTED",
-                "stat_t": "~" + self._generate_topic("eventTopic", "Connected"),
-                "json_attr_t": "~" + self._generate_topic("eventTopic", "Connected"),
+                "stat_t": "~" + self._generate_topic("hassTopic", "Connected"),
+                "json_attr_t": "~" + self._generate_topic("hassTopic", "Connected"),
                 "pl_on": "Connected",
                 "pl_off": "Disconnected",
                 "val_tpl": "{{value_json._event}}",
@@ -209,7 +198,7 @@ class HomeassistantPlugin(
 
         ##~~ Configure Printing Sensor
         self._generate_sensor(
-            topic = _discovery_topic + "/binary_sensor/" + _node_id + "_PRINTING/config",
+            topic=_discovery_topic + "/binary_sensor/" + _node_id + "_PRINTING/config",
             values={
                 "name": _node_name + " Printing",
                 "uniq_id": _node_id + "_PRINTING",
@@ -223,7 +212,7 @@ class HomeassistantPlugin(
 
         ##~~ Configure Last Event Sensor
         self._generate_sensor(
-            topic = _discovery_topic + "/sensor/" + _node_id + "_EVENT/config",
+            topic=_discovery_topic + "/sensor/" + _node_id + "_EVENT/config",
             values={
                 "name": _node_name + " Last Event",
                 "uniq_id": _node_id + "_EVENT",
@@ -235,7 +224,7 @@ class HomeassistantPlugin(
 
         ##~~ Configure Print Status
         self._generate_sensor(
-            topic = _discovery_topic + "/sensor/" + _node_id + "_PRINTING_S/config",
+            topic=_discovery_topic + "/sensor/" + _node_id + "_PRINTING_S/config",
             values={
                 "name": _node_name + " Print Status",
                 "uniq_id": _node_id + "_PRINTING_S",
@@ -249,7 +238,7 @@ class HomeassistantPlugin(
 
         ##~~ Configure Print Progress
         self._generate_sensor(
-            topic = _discovery_topic + "/sensor/" + _node_id + "_PRINTING_P/config",
+            topic=_discovery_topic + "/sensor/" + _node_id + "_PRINTING_P/config",
             values={
                 "name": _node_name + " Print Progress",
                 "uniq_id": _node_id + "_PRINTING_P",
@@ -262,7 +251,7 @@ class HomeassistantPlugin(
 
         ##~~ Configure Print File
         self._generate_sensor(
-            topic = _discovery_topic + "/sensor/" + _node_id + "_PRINTING_F/config",
+            topic=_discovery_topic + "/sensor/" + _node_id + "_PRINTING_F/config",
             values={
                 "name": _node_name + " Print File",
                 "uniq_id": _node_id + "_PRINTING_F",
@@ -275,7 +264,7 @@ class HomeassistantPlugin(
 
         ##~~ Configure Print Time
         self._generate_sensor(
-            topic = _discovery_topic + "/sensor/" + _node_id + "_PRINTING_T/config",
+            topic=_discovery_topic + "/sensor/" + _node_id + "_PRINTING_T/config",
             values={
                 "name": _node_name + " Print Time",
                 "uniq_id": _node_id + "_PRINTING_T",
@@ -288,7 +277,7 @@ class HomeassistantPlugin(
 
         ##~~ Configure Print Time Left
         self._generate_sensor(
-            topic = _discovery_topic + "/sensor/" + _node_id + "_PRINTING_E/config",
+            topic=_discovery_topic + "/sensor/" + _node_id + "_PRINTING_E/config",
             values={
                 "name": _node_name + " Print Time Left",
                 "uniq_id": _node_id + "_PRINTING_E",
@@ -301,7 +290,7 @@ class HomeassistantPlugin(
 
         ##~~ Configure Print ETA
         self._generate_sensor(
-            topic = _discovery_topic + "/sensor/" + _node_id + "_PRINTING_ETA/config",
+            topic=_discovery_topic + "/sensor/" + _node_id + "_PRINTING_ETA/config",
             values={
                 "name": _node_name + " Print Estimated Time",
                 "uniq_id": _node_id + "_PRINTING_ETA",
@@ -315,7 +304,7 @@ class HomeassistantPlugin(
 
         ##~~ Configure Print Current Z
         self._generate_sensor(
-            topic = _discovery_topic + "/sensor/" + _node_id + "_PRINTING_Z/config",
+            topic=_discovery_topic + "/sensor/" + _node_id + "_PRINTING_Z/config",
             values={
                 "name": _node_name + " Current Z",
                 "uniq_id": _node_id + "_PRINTING_Z",
@@ -329,7 +318,7 @@ class HomeassistantPlugin(
 
         ##~~ Configure Slicing Status
         self._generate_sensor(
-            topic = _discovery_topic + "/sensor/" + _node_id + "_SLICING_P/config",
+            topic=_discovery_topic + "/sensor/" + _node_id + "_SLICING_P/config",
             values={
                 "name": _node_name + " Slicing Progress",
                 "uniq_id": _node_id + "_SLICING_P",
@@ -342,7 +331,7 @@ class HomeassistantPlugin(
 
         ##~~ Configure Slicing File
         self._generate_sensor(
-            topic = _discovery_topic + "/sensor/" + _node_id + "_SLICING_F/config",
+            topic=_discovery_topic + "/sensor/" + _node_id + "_SLICING_F/config",
             values={
                 "name": _node_name + " Slicing File",
                 "uniq_id": _node_id + "_SLICING_F",
@@ -357,7 +346,12 @@ class HomeassistantPlugin(
         _e = self._printer_profile_manager.get_current_or_default()["extruder"]["count"]
         for x in range(_e):
             self._generate_sensor(
-                topic = _discovery_topic + "/sensor/" + _node_id + "_TOOL" + str(x) + "/config",
+                topic=_discovery_topic
+                + "/sensor/"
+                + _node_id
+                + "_TOOL"
+                + str(x)
+                + "/config",
                 values={
                     "name": _node_name + " Tool " + str(x) + " Temperature",
                     "uniq_id": _node_id + "_TOOL" + str(x),
@@ -371,7 +365,8 @@ class HomeassistantPlugin(
                 },
             )
             self._generate_sensor(
-                topic = _discovery_topic + "/sensor/"
+                topic=_discovery_topic
+                + "/sensor/"
                 + _node_id
                 + "_TOOL_TARGET"
                 + str(x)
@@ -391,7 +386,7 @@ class HomeassistantPlugin(
 
         ##~~ Bed Temperature
         self._generate_sensor(
-            topic = _discovery_topic + "/sensor/" + _node_id + "_BED/config",
+            topic=_discovery_topic + "/sensor/" + _node_id + "_BED/config",
             values={
                 "name": _node_name + " Bed Temperature",
                 "uniq_id": _node_id + "_BED",
@@ -404,7 +399,7 @@ class HomeassistantPlugin(
             },
         )
         self._generate_sensor(
-            topic = _discovery_topic + "/sensor/" + _node_id + "_BED_TARGET/config",
+            topic=_discovery_topic + "/sensor/" + _node_id + "_BED_TARGET/config",
             values={
                 "name": _node_name + " Bed Target",
                 "uniq_id": _node_id + "_BED_TARGET",
@@ -466,6 +461,16 @@ class HomeassistantPlugin(
                 data,
                 allow_queueing=True,
             )
+
+    def _generate_connection_status(self):
+
+        state, _, _, _ = self._printer.get_current_connection()
+        state_connected = "Disconnected" if state == "Closed" else "Connected"
+        self.mqtt_publish(
+            self._generate_topic("hassTopic", "Connected", full=True),
+            state_connected,
+            allow_queueing=True,
+        )
 
     def _on_emergency_stop(
         self, topic, message, retained=None, qos=None, *args, **kwargs
@@ -551,7 +556,7 @@ class HomeassistantPlugin(
             )
 
         self._generate_sensor(
-            topic = _discovery_topic + "/switch/" + _node_id + "_STOP/config",
+            topic=_discovery_topic + "/switch/" + _node_id + "_STOP/config",
             values={
                 "name": _node_name + " Emergency Stop",
                 "uniq_id": _node_id + "_STOP",
@@ -573,7 +578,7 @@ class HomeassistantPlugin(
             )
 
         self._generate_sensor(
-            topic = _discovery_topic + "/switch/" + _node_id + "_CANCEL/config",
+            topic=_discovery_topic + "/switch/" + _node_id + "_CANCEL/config",
             values={
                 "name": _node_name + " Cancel Print",
                 "uniq_id": _node_id + "_CANCEL",
@@ -598,7 +603,7 @@ class HomeassistantPlugin(
             )
 
         self._generate_sensor(
-            topic = _discovery_topic + "/switch/" + _node_id + "_PAUSE/config",
+            topic=_discovery_topic + "/switch/" + _node_id + "_PAUSE/config",
             values={
                 "name": _node_name + " Pause Print",
                 "uniq_id": _node_id + "_PAUSE",
@@ -622,7 +627,7 @@ class HomeassistantPlugin(
             )
 
         self._generate_sensor(
-            topic = _discovery_topic + "/switch/" + _node_id + "_SHUTDOWN/config",
+            topic=_discovery_topic + "/switch/" + _node_id + "_SHUTDOWN/config",
             values={
                 "name": _node_name + " Shutdown System",
                 "uniq_id": _node_id + "_SHUTDOWN",
@@ -674,6 +679,11 @@ class HomeassistantPlugin(
             ),
         )
 
+        # Printer connectivity status events
+        if event in events["comm"]:
+            self._generate_connection_status()
+
+        # Print job status events
         if (
             event in events["comm"]
             or event in events["files"]
