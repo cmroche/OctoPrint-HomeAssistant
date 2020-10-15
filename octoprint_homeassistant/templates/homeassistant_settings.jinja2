@@ -1,0 +1,37 @@
+<form id="homeassistant_plugin_settings" class="form-horizontal">
+    <h4>Discovery settings</h4>
+    <div class="accordion-inner">
+        <div class="control-group">
+            <label class="control-label">{{ _('Discovery topic') }}</label>
+            <div class="controls">
+                <input type="text" class="input-block-level" data-bind="value: settings.plugins.homeassistant.discovery_topic">
+            </div>
+            <label class="control-label">{{ _('Node ID') }}</label>
+            <div class="controls">
+                <input type="text" class="input-block-level" data-bind="value: settings.plugins.homeassistant.node_id">
+            </div>
+            <span class="help-block">
+                The id that is used in the MQTT discovery messages.<br/>
+                <br/>
+                <b>Changing this will break existing entities in Home Assistant!</b>
+            </span>
+        </div>
+    </div>
+    <h4>Device settings</h4>
+    <div class="accordion-inner">
+        <div class="control-group">
+            <label class="control-label">{{ _('Device name') }}</label>
+            <div class="controls">
+                <input type="text" class="input-block-level" data-bind="value: settings.plugins.homeassistant.node_name">
+            </div>
+            <label class="control-label">{{ _('Manufacturer') }}</label>
+            <div class="controls">
+                <input type="text" class="input-block-level" data-bind="value: settings.plugins.homeassistant.device_manufacturer">
+            </div>
+            <label class="control-label">{{ _('Model') }}</label>
+            <div class="controls">
+                <input type="text" class="input-block-level" data-bind="value: settings.plugins.homeassistant.device_model">
+            </div>
+        </div>
+    </div>
+</form>

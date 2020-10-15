@@ -15,16 +15,15 @@ from octoprint.server import user_permission
 from octoprint.settings import settings
 from octoprint.util import RepeatedTimer
 
-### (Don't forget to remove me)
-# This is a basic skeleton for your plugin's __init__.py. You probably want to adjust the class name of your plugin
-# as well as the plugin mixins it's subclassing from. This is really just a basic skeleton to get you started,
-# defining your plugin as a template plugin, settings and asset plugin. Feel free to add or remove mixins
-# as necessary.
-#
-# Take a look at the documentation on what other plugin mixins are available.
+SETTINGS_DEFAULTS = dict(
+    unique_id=None,
+    node_id=None,
+    discovery_topic="homeassistant",
+    node_name="OctoPrint",
+    device_manufacturer="Clifford Roche",
+    device_model="HomeAssistant Discovery for OctoPrint",
+)
 
-
-SETTINGS_DEFAULTS = dict(unique_id=None, node_id=None, discovery_topic="homeassistant")
 MQTT_DEFAULTS = dict(
     publish=dict(
         baseTopic="octoPrint/",
@@ -36,7 +35,6 @@ MQTT_DEFAULTS = dict(
         controlTopic="hassControl/{control}",
     )
 )
-
 
 class HomeassistantPlugin(
     octoprint.plugin.SettingsPlugin,
@@ -62,14 +60,31 @@ class HomeassistantPlugin(
         return SETTINGS_DEFAULTS
 
     def get_settings_version(self):
-        return 1
+        return 2
 
     def on_settings_migrate(self, target, current):
-        if target == 1:  # This is the first version
+        if target >= 1:  # This is the first version
             _node_uuid = self._settings.get(["unique_id"])
             if _node_uuid:
                 _node_id = (_node_uuid[:6]).upper()
                 self._settings.set(["node_id"], _node_id)
+
+    def on_settings_save(self, data):
+        octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
+
+        self._generate_device_registration()
+        self._generate_device_controls(subscribe=True)
+        self._generate_connection_status()
+
+    ##~~ TemplatePlugin mixin
+
+    def get_template_configs(self):
+        return [
+            dict(
+                type="settings",
+                custom_bindings=False
+            )
+        ]
 
     ##~~ StartupPlugin mixin
 
@@ -171,14 +186,15 @@ class HomeassistantPlugin(
 
     def _generate_device_registration(self):
 
-        s = settings()
-        name_defaults = dict(appearance=dict(name="OctoPrint"))
-
-        _node_name = s.get(["appearance", "name"], defaults=name_defaults)
-        _node_id = self._settings.get(["node_id"])
         _discovery_topic = self._settings.get(["discovery_topic"])
 
-        _config_device = self._generate_device_config(_node_id, _node_name)
+        _node_name = self._settings.get(["node_name"])
+        _node_id = self._settings.get(["node_id"])
+
+        _device_manufacturer = self._settings.get(["device_manufacturer"])
+        _device_model = self._settings.get(["device_model"])
+
+        _config_device = self._generate_device_config(_node_id, _node_name, _device_manufacturer, _device_model)
 
         ##~~ Configure Connected Sensor
         self._generate_sensor(
@@ -368,12 +384,13 @@ class HomeassistantPlugin(
                 topic=_discovery_topic
                 + "/sensor/"
                 + _node_id
-                + "_TOOL_TARGET"
+                + "_TOOL"
                 + str(x)
+                + "_TARGET"
                 + "/config",
                 values={
                     "name": _node_name + " Tool " + str(x) + " Target",
-                    "uniq_id": _node_id + "_TOOL_TARGET" + str(x),
+                    "uniq_id": _node_id + "_TOOL" + str(x) + "_TARGET",
                     "stat_t": "~"
                     + self._generate_topic("temperatureTopic", "tool" + str(x)),
                     "unit_of_meas": "°C",
@@ -422,14 +439,14 @@ class HomeassistantPlugin(
         payload.update(values)
         self.mqtt_publish(topic, payload, allow_queueing=True)
 
-    def _generate_device_config(self, _node_id, _node_name):
+    def _generate_device_config(self, _node_id, _node_name, _device_manufacturer, _device_model):
         _config_device = {
             "ids": [_node_id],
             "cns": [["mac", self._get_mac_address()]],
             "name": _node_name,
-            "mf": "Clifford Roche",
-            "mdl": "HomeAssistant Discovery for OctoPrint",
-            "sw": self._plugin_version,
+            "mf": _device_manufacturer,
+            "mdl": _device_model,
+            "sw": "HomeAssistant Discovery for OctoPrint " + self._plugin_version,
         }
         return _config_device
 
@@ -466,11 +483,17 @@ class HomeassistantPlugin(
 
         state, _, _, _ = self._printer.get_current_connection()
         state_connected = "Disconnected" if state == "Closed" else "Connected"
-        self.mqtt_publish(
-            self._generate_topic("hassTopic", "Connected", full=True),
-            state_connected,
-            allow_queueing=True,
-        )
+        # Function can be called by on_event before on_after_startup has run.
+        # This will throw a TypeError since self.mqtt_publish is still null.
+        try:
+            self.mqtt_publish(
+                self._generate_topic("hassTopic", "Connected", full=True),
+                state_connected,
+                allow_queueing=True,
+            )
+        except TypeError:
+            self._logger.warning("mqtt_publish helper is not yet defined, not publishing connection state " + state_connected)
+            pass
 
     def _on_emergency_stop(
         self, topic, message, retained=None, qos=None, *args, **kwargs
@@ -538,15 +561,15 @@ class HomeassistantPlugin(
 
     def _generate_device_controls(self, subscribe=False):
 
-        s = settings()
-        name_defaults = dict(appearance=dict(name="OctoPrint"))
+        _discovery_topic = self._settings.get(["discovery_topic"])
 
-        _node_name = s.get(["appearance", "name"], defaults=name_defaults)
+        _node_name = self._settings.get(["node_name"])
         _node_id = self._settings.get(["node_id"])
 
-        _config_device = self._generate_device_config(_node_id, _node_name)
+        _device_manufacturer = self._settings.get(["device_manufacturer"])
+        _device_model = self._settings.get(["device_model"])
 
-        _discovery_topic = self._settings.get(["discovery_topic"])
+        _config_device = self._generate_device_config(_node_id, _node_name, _device_manufacturer, _device_model)
 
         # Emergency stop
         if subscribe:
@@ -776,10 +799,8 @@ class HomeassistantPlugin(
             )
         )
 
-
 __plugin_name__ = "HomeAssistant Discovery"
 __plugin_pythoncompat__ = ">=2.7,<4"  # python 2 and 3
-
 
 def __plugin_load__():
     global __plugin_implementation__
@@ -789,4 +810,3 @@ def __plugin_load__():
     __plugin_hooks__ = {
         "octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information
     }
-
