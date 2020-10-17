@@ -448,7 +448,7 @@ class HomeassistantPlugin(
                 "uniq_id": _node_id + "_SOC",
                 "stat_t": "~" + self._generate_topic("temperatureTopic", "soc"),
                 "unit_of_meas": "°C",
-                "val_tpl": "{{value_json.temperature|float}}",
+                "val_tpl": "{{value_json.temperature|float|round(1)}}",
                 "device": _config_device,
                 "dev_cla": "temperature",
                 "ic": "mdi:radiator",
