@@ -256,6 +256,8 @@ class HomeassistantPlugin(
             values={
                 "name": _node_name + " Print Progress",
                 "uniq_id": _node_id + "_PRINTING_P",
+                "json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
+                "json_attr_tpl": "{{value_json.progress|tojson}}",
                 "stat_t": "~" + self._generate_topic("progressTopic", "printing"),
                 "unit_of_meas": "%",
                 "val_tpl": "{{value_json.progress|float|default(0,true)}}",
