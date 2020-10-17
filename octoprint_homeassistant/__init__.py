@@ -36,6 +36,7 @@ MQTT_DEFAULTS = dict(
     )
 )
 
+
 class HomeassistantPlugin(
     octoprint.plugin.SettingsPlugin,
     octoprint.plugin.TemplatePlugin,
@@ -79,12 +80,7 @@ class HomeassistantPlugin(
     ##~~ TemplatePlugin mixin
 
     def get_template_configs(self):
-        return [
-            dict(
-                type="settings",
-                custom_bindings=False
-            )
-        ]
+        return [dict(type="settings", custom_bindings=False)]
 
     ##~~ StartupPlugin mixin
 
@@ -194,7 +190,9 @@ class HomeassistantPlugin(
         _device_manufacturer = self._settings.get(["device_manufacturer"])
         _device_model = self._settings.get(["device_model"])
 
-        _config_device = self._generate_device_config(_node_id, _node_name, _device_manufacturer, _device_model)
+        _config_device = self._generate_device_config(
+            _node_id, _node_name, _device_manufacturer, _device_model
+        )
 
         ##~~ Configure Connected Sensor
         self._generate_sensor(
@@ -439,7 +437,9 @@ class HomeassistantPlugin(
         payload.update(values)
         self.mqtt_publish(topic, payload, allow_queueing=True)
 
-    def _generate_device_config(self, _node_id, _node_name, _device_manufacturer, _device_model):
+    def _generate_device_config(
+        self, _node_id, _node_name, _device_manufacturer, _device_model
+    ):
         _config_device = {
             "ids": [_node_id],
             "cns": [["mac", self._get_mac_address()]],
@@ -485,15 +485,12 @@ class HomeassistantPlugin(
         state_connected = "Disconnected" if state == "Closed" else "Connected"
         # Function can be called by on_event before on_after_startup has run.
         # This will throw a TypeError since self.mqtt_publish is still null.
-        try:
+        if self.mqtt_publish:
             self.mqtt_publish(
                 self._generate_topic("hassTopic", "Connected", full=True),
                 state_connected,
                 allow_queueing=True,
             )
-        except TypeError:
-            self._logger.warning("mqtt_publish helper is not yet defined, not publishing connection state " + state_connected)
-            pass
 
     def _on_emergency_stop(
         self, topic, message, retained=None, qos=None, *args, **kwargs
@@ -569,7 +566,9 @@ class HomeassistantPlugin(
         _device_manufacturer = self._settings.get(["device_manufacturer"])
         _device_model = self._settings.get(["device_model"])
 
-        _config_device = self._generate_device_config(_node_id, _node_name, _device_manufacturer, _device_model)
+        _config_device = self._generate_device_config(
+            _node_id, _node_name, _device_manufacturer, _device_model
+        )
 
         # Emergency stop
         if subscribe:
@@ -799,8 +798,10 @@ class HomeassistantPlugin(
             )
         )
 
+
 __plugin_name__ = "HomeAssistant Discovery"
 __plugin_pythoncompat__ = ">=2.7,<4"  # python 2 and 3
+
 
 def __plugin_load__():
     global __plugin_implementation__
