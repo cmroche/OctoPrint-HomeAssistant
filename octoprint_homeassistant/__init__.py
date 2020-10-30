@@ -215,7 +215,6 @@ class HomeassistantPlugin(
                 "json_attr_t": "~" + self._generate_topic("hassTopic", "Connected"),
                 "pl_on": "Connected",
                 "pl_off": "Disconnected",
-                "val_tpl": "{{value_json._event}}",
                 "dev_cla": "connectivity",
                 "device": _config_device,
             },
