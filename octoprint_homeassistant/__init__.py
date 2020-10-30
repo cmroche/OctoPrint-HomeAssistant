@@ -212,7 +212,6 @@ class HomeassistantPlugin(
                 "name": _node_name + " Connected",
                 "uniq_id": _node_id + "_CONNECTED",
                 "stat_t": "~" + self._generate_topic("hassTopic", "Connected"),
-                "json_attr_t": "~" + self._generate_topic("hassTopic", "Connected"),
                 "pl_on": "Connected",
                 "pl_off": "Disconnected",
                 "dev_cla": "connectivity",
