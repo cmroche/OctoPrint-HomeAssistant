@@ -467,8 +467,7 @@ class HomeassistantPlugin(
         self, _node_id, _node_name, _device_manufacturer, _device_model
     ):
         _config_device = {
-            "ids": [_node_id],
-            "cns": [["mac", self._get_mac_address()]],
+            "ids": _node_id,
             "name": _node_name,
             "mf": _device_manufacturer,
             "mdl": _device_model,
