@@ -189,7 +189,7 @@ tap_action:
   service: mqtt.publish
   service_data:
     topic: octoPrint/hassControl/jog
-    payload: '{"x": 0.1 }'
+    payload: '{"x": 0.1, "speed": 1.0 }'
 ```
 
 #### Send GCODE from Lovelace
