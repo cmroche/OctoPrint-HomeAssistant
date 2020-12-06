@@ -438,6 +438,36 @@ class HomeassistantPlugin(
             },
         )
 
+        ##~~ Chamber Temperature
+        _h = self._printer_profile_manager.get_current_or_default()["heatedChamber"]
+        if _h:
+            self._generate_sensor(
+                topic=_discovery_topic + "/sensor/" + _node_id + "_CHAMBER/config",
+                values={
+                    "name": _node_name + " Chamber Temperature",
+                    "uniq_id": _node_id + "_CHAMBER",
+                    "stat_t": "~" + self._generate_topic("temperatureTopic", "chamber"),
+                    "unit_of_meas": "°C",
+                    "val_tpl": "{{value_json.actual|float}}",
+                    "device": _config_device,
+                    "dev_cla": "temperature",
+                    "ic": "mdi:radiator",
+                },
+            )
+            self._generate_sensor(
+                topic=_discovery_topic + "/sensor/" + _node_id + "_CHAMBER_TARGET/config",
+                values={
+                    "name": _node_name + " Chamber Target",
+                    "uniq_id": _node_id + "_CHAMBER_TARGET",
+                    "stat_t": "~" + self._generate_topic("temperatureTopic", "chamber"),
+                    "unit_of_meas": "°C",
+                    "val_tpl": "{{value_json.target|float}}",
+                    "device": _config_device,
+                    "dev_cla": "temperature",
+                    "ic": "mdi:radiator",
+                },
+            )
+
         ##~~ SoC Temperature (if supported)
         self._generate_sensor(
             topic="homeassistant/sensor/" + _node_id + "_SOC/config",
