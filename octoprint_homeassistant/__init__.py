@@ -534,19 +534,19 @@ class HomeassistantPlugin(
         try:
             data["progress"]["printTimeLeftFormatted"] = str(
                 datetime.timedelta(seconds=int(data["progress"]["printTimeLeft"]))
-            )
+            ).split(".")[0]
         except:
             data["progress"]["printTimeLeftFormatted"] = None
         try:
             data["progress"]["printTimeFormatted"] = str(
                 datetime.timedelta(seconds=data["progress"]["printTime"])
-            )
+            ).split(".")[0]
         except:
             data["progress"]["printTimeFormatted"] = None
         try:
             data["job"]["estimatedPrintTimeFormatted"] = str(
                 datetime.timedelta(seconds=data["job"]["estimatedPrintTime"])
-            )
+            ).split(".")[0]
         except:
             data["job"]["estimatedPrintTimeFormatted"] = None
 
