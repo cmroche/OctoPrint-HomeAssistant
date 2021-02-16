@@ -154,7 +154,7 @@ This will create a camera entity as `camera.octoprint_ender_3`
 
 ```yaml
 camera:
-  - platform: generic
+  - platform: mpeg
     name: OctoPrint Ender 3
     still_image_url: http://octoprint.local/webcam/?action=snapshot
     stream_source: http://octoprint.local/webcam/?action=stream
