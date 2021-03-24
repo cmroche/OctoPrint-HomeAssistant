@@ -606,6 +606,13 @@ class HomeassistantPlugin(
             except Exception as e:
                 self._logger.info("Unable to run shutdown command: " + str(e))
 
+    def _on_camera(
+        self, topic, message, retained=None, qos=None, *args, **kwargs
+    ):
+        self._logger.debug("Camera snapshot message received: " + str(message))
+        if message:
+            self._logger.warning("This has not been implemented")
+
     def _on_home(self, topic, message, retained=None, qos=None, *args, **kwargs):
         self._logger.debug("Homing printer: " + str(message))
         if message:
@@ -741,6 +748,24 @@ class HomeassistantPlugin(
             },
         )
 
+        # Camera output
+        if subscribe:
+            self.mqtt_subscribe(
+                self._generate_topic("controlTopic", "camera", full=True),
+                self._on_camera,
+            )
+
+        self._generate_sensor(
+            topic=_discovery_topic + "/camera/" + _node_id + "_CAMERA/config",
+            values={
+                "name": _node_name + " Camera",
+                "uniq_id": _node_id + "_CAMERA",
+                "device": _config_device,
+                "topic": self._generate_topic("controlTopic", "camera"),
+                "ic": "mdi:photo_camera",
+            },
+        )
+
         # Command topics that don't have a suitable sensor configuration. These can be used
         # through the MQTT.publish service call though.
         if subscribe:
@@ -767,7 +792,11 @@ class HomeassistantPlugin(
                 Events.ERROR,
                 Events.PRINTER_STATE_CHANGED,
             ),
-            files=(Events.FILE_SELECTED, Events.FILE_DESELECTED),
+            files=(
+                Events.FILE_SELECTED,
+                Events.FILE_DESELECTED,
+                Events.CAPTURE_DONE,
+            ),
             status=(
                 Events.PRINT_STARTED,
                 Events.PRINT_FAILED,
@@ -833,6 +862,14 @@ class HomeassistantPlugin(
                 "False",
                 allow_queueing=True,
             )
+
+        if event == Events.CAPTURE_DONE:
+            self.mqtt_publish(
+                self._generate_topic("controlTopic", "camera", full=True),
+                open(payload.file, 'r').read(),
+                allow_queueing=True,
+            )
+
 
     ##~~ ProgressPlugin API
 
