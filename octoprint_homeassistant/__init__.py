@@ -761,8 +761,7 @@ class HomeassistantPlugin(
                 "name": _node_name + " Camera",
                 "uniq_id": _node_id + "_CAMERA",
                 "device": _config_device,
-                "topic": self._generate_topic("controlTopic", "camera"),
-                "ic": "mdi:photo_camera",
+                "topic": self._generate_topic("baseTopic", "camera"),
             },
         )
 
@@ -864,9 +863,13 @@ class HomeassistantPlugin(
             )
 
         if event == Events.CAPTURE_DONE:
+            camera_topic = self._generate_topic("baseTopic", "camera", full=True)
+            self._logger.debug("Attempting to publish " + payload.file + " to topic " + camera_topic)
+            file_content = open(payload.file, 'r').read()
+            self._logger.debug("Content size: " + len(file_content))
             self.mqtt_publish(
-                self._generate_topic("controlTopic", "camera", full=True),
-                open(payload.file, 'r').read(),
+                self._generate_topic("baseTopic", "camera", full=True),
+                file_content,
                 allow_queueing=True,
             )
 
