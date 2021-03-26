@@ -121,16 +121,13 @@ class HomeassistantPlugin(
                     self._on_mqtt_message,
                 )
 
-            self.snapshot_enabled = self._settings.global_get(
-                ["webcam", "timelapseEnabled"]
-            )
-            if self.snapshot_enabled:
-                self.snapshot_path = self._settings.global_get(
-                    ["webcam", "snapshot"]
-                )
-                if not self.snapshot_path:
-                    self.snapshot_enabled = False
-
+        self.snapshot_enabled = self._settings.global_get(
+            ["webcam", "timelapseEnabled"]
+        )
+        if self.snapshot_enabled:
+            self.snapshot_path = self._settings.global_get(["webcam", "snapshot"])
+            if not self.snapshot_path:
+                self.snapshot_enabled = False
 
         if not self.update_timer:
             self.update_timer = RepeatedTimer(60, self.handle_timer, None, None, False)
@@ -466,7 +463,10 @@ class HomeassistantPlugin(
                 },
             )
             self._generate_sensor(
-                topic=_discovery_topic + "/sensor/" + _node_id + "_CHAMBER_TARGET/config",
+                topic=_discovery_topic
+                + "/sensor/"
+                + _node_id
+                + "_CHAMBER_TARGET/config",
                 values={
                     "name": _node_name + " Chamber Target",
                     "uniq_id": _node_id + "_CHAMBER_TARGET",
@@ -617,12 +617,11 @@ class HomeassistantPlugin(
             except Exception as e:
                 self._logger.info("Unable to run shutdown command: " + str(e))
 
-    def _on_camera(
-        self, topic, message, retained=None, qos=None, *args, **kwargs
-    ):
+    def _on_camera(self, topic, message, retained=None, qos=None, *args, **kwargs):
         self._logger.debug("Camera snapshot message received: " + str(message))
         if self.snapshot_enabled:
             import urllib.request as urlreq
+
             url_handle = urlreq.urlopen(self.snapshot_path)
             file_content = url_handle.read()
             url_handle.close()
@@ -632,7 +631,6 @@ class HomeassistantPlugin(
                 allow_queueing=False,
                 raw=True,
             )
-            
 
     def _on_home(self, topic, message, retained=None, qos=None, *args, **kwargs):
         self._logger.debug("Homing printer: " + str(message))
@@ -885,7 +883,7 @@ class HomeassistantPlugin(
             )
 
         if event == Events.CAPTURE_DONE:
-            file_handle = open(payload["file"], 'rb')
+            file_handle = open(payload["file"], "rb")
             file_content = file_handle.read()
             file_handle.close()
             self.mqtt_publish(
@@ -894,7 +892,6 @@ class HomeassistantPlugin(
                 allow_queueing=False,
                 raw=True,
             )
-
 
     ##~~ ProgressPlugin API
 
