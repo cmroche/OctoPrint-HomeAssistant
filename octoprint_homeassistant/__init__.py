@@ -771,9 +771,29 @@ class HomeassistantPlugin(
         if self.snapshot_enabled:
             if subscribe:
                 self.mqtt_subscribe(
-                    self._generate_topic("controlTopic", "camera", full=True),
+                    self._generate_topic("controlTopic", "camera_snapshot", full=True),
                     self._on_camera,
                 )
+
+            self._generate_sensor(
+                topic=_discovery_topic
+                + "/switch/"
+                + _node_id
+                + "_CAMERA_SNAPSHOT/config",
+                values={
+                    "name": _node_name + " Camera snapshot",
+                    "uniq_id": _node_id + "_CAMERA_SNAPSHOT",
+                    "cmd_t": "~"
+                    + self._generate_topic("controlTopic", "camera_snapshot"),
+                    "stat_t": "~"
+                    + self._generate_topic("controlTopic", "camera_snapshot"),
+                    "pl_off": "False",
+                    "pl_on": "True",
+                    "val_tpl": "{{False}}",
+                    "device": _config_device,
+                    "ic": "mdi:camera-iris",
+                },
+            )
 
             self._generate_sensor(
                 topic=_discovery_topic + "/camera/" + _node_id + "_CAMERA/config",
