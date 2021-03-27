@@ -629,7 +629,7 @@ class HomeassistantPlugin(
                 self._generate_topic("baseTopic", "camera", full=True),
                 file_content,
                 allow_queueing=False,
-                raw=True,
+                raw_data=True,
             )
 
     def _on_home(self, topic, message, retained=None, qos=None, *args, **kwargs):
@@ -910,7 +910,7 @@ class HomeassistantPlugin(
                 self._generate_topic("baseTopic", "camera", full=True),
                 file_content,
                 allow_queueing=False,
-                raw=True,
+                raw_data=True,
             )
 
     ##~~ ProgressPlugin API
