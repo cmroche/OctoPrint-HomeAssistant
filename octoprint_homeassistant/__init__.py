@@ -591,9 +591,7 @@ class HomeassistantPlugin(
         else:
             self._printer.resume_print()
 
-    def _on_shutdown_system(
-        self, topic, message, retained=None, qos=None, *args, **kwargs
-    ):
+    def _on_shutdown_system(self, topic, message, retained=None, qos=None, *args, **kwargs):
         self._logger.debug("Shutdown print message received: " + str(message))
         if message:
             shutdown_command = self._settings.global_get(
@@ -605,6 +603,17 @@ class HomeassistantPlugin(
                 sarge.run(shutdown_command, async_=True)
             except Exception as e:
                 self._logger.info("Unable to run shutdown command: " + str(e))
+
+    def _on_connect_printer(self, topic, message, retained=None, qos=None, *args, **kwargs):
+        self._logger.debug("(Dis)Connecting to printer" + str(message))
+        try:
+          if message == b'on':
+            self._printer.connect()
+          else:
+            self._printer.disconnect()
+        except Exception as e:
+          self._logger.error("Unable to run connect command: " + str(e))
+
 
     def _on_home(self, topic, message, retained=None, qos=None, *args, **kwargs):
         self._logger.debug("Homing printer: " + str(message))
@@ -646,6 +655,29 @@ class HomeassistantPlugin(
 
         _config_device = self._generate_device_config(
             _node_id, _node_name, _device_manufacturer, _device_model
+        )
+
+        # Connect printer
+        if subscribe:
+            self.mqtt_subscribe(
+                self._generate_topic("controlTopic", "connect", full=True),
+                self._on_connect_printer,
+            )
+
+        self._generate_sensor(
+            topic=_discovery_topic + "/switch/" + _node_id + "_CONNECT/config",
+            values={
+                "name": _node_name + " Connect to printer",
+                "uniq_id": _node_id + "_CONNECT",
+                "cmd_t": "~" + self._generate_topic("controlTopic", "connect"),
+                "stat_t": self._generate_topic("hassTopic", "Connected", full=True),
+                "pl_off": "off",
+                "pl_on": "on",
+                "stat_on": "Connected",
+                "stat_off": "Disconnected",
+                "device": _config_device,
+                "ic": "mdi:lan-connect",
+            },
         )
 
         # Emergency stop
@@ -746,6 +778,9 @@ class HomeassistantPlugin(
         if subscribe:
             self.mqtt_subscribe(
                 self._generate_topic("controlTopic", "jog", full=True), self._on_jog
+            )
+            self.mqtt_subscribe(
+                self._generate_topic("controlTopic", "connect", full=True), self._on_connect_printer
             )
             self.mqtt_subscribe(
                 self._generate_topic("controlTopic", "home", full=True), self._on_home
