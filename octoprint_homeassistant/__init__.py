@@ -676,7 +676,7 @@ class HomeassistantPlugin(
                 "stat_on": "Connected",
                 "stat_off": "Disconnected",
                 "device": _config_device,
-                "ic": "mdi:power-plug",
+                "ic": "mdi:lan-connect",
             },
         )
 
