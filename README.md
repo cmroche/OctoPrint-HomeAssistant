@@ -156,8 +156,8 @@ This will create a camera entity as `camera.octoprint_ender_3`
 camera:
   - platform: mjpeg
     name: OctoPrint Ender 3
-    still_image_url: http://octoprint.local/webcam/?action=snapshot
-    mjpeg_url: http://octoprint.local/webcam/?action=stream
+    still_image_url: http://octopi.local/webcam/?action=snapshot
+    mjpeg_url: http://octopi.local/webcam/?action=stream
 ```
 
 ### Sending commands to the printer
