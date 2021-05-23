@@ -154,10 +154,10 @@ This will create a camera entity as `camera.octoprint_ender_3`
 
 ```yaml
 camera:
-  - platform: mpeg
+  - platform: mjpeg
     name: OctoPrint Ender 3
     still_image_url: http://octoprint.local/webcam/?action=snapshot
-    stream_source: http://octoprint.local/webcam/?action=stream
+    mjpeg_url: http://octoprint.local/webcam/?action=stream
 ```
 
 ### Sending commands to the printer
