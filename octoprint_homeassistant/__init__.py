@@ -32,10 +32,17 @@ MQTT_DEFAULTS = dict(
         progressTopic="progress/{progress}",
         temperatureTopic="temperature/{temp}",
         lwTopic="mqtt",
+        lwActive=True,
         hassTopic="hass/{hass}",
         controlTopic="hassControl/{control}",
+    ),
+    broker=dict(
+        retain=True,
+        lwRetain=True
     )
 )
+
+
 
 
 class HomeassistantPlugin(
@@ -99,6 +106,17 @@ class HomeassistantPlugin(
             self._settings.set(["node_id"], _uuid.hex)
             settings().save()
 
+        mqtt_defaults = dict(plugins=dict(mqtt=MQTT_DEFAULTS))
+        if not settings().get_boolean(
+            ["plugins", "mqtt", "broker", "lwRetain"], defaults=mqtt_defaults
+        ):
+            self.send_notification_toast(
+                "warning", "Home Assistant: Check MQTT config!",
+                "OctoPrint-MQTT config should enable 'Retain LWT publication' or connected status may be wrong in Home Assistant.",
+                True,
+                key="check_lwretain", close_keys=["check_lwretain"]
+            )
+
         helpers = self._plugin_manager.get_helpers(
             "mqtt", "mqtt_publish", "mqtt_publish_with_timestamp", "mqtt_subscribe"
         )
@@ -159,6 +177,20 @@ class HomeassistantPlugin(
         )
         self.on_print_progress("", "", 0)
         self._generate_connection_status()
+
+    def send_notification_toast(
+        self, toast_type, title, message, auto_hide, key=None, close_keys=[]
+    ):
+        data = {
+            "message_type": "toast",
+            "toast_type": toast_type,
+            "title": title,
+            "message": message,
+            "auto_hide": auto_hide,
+            "key": key,
+            "close_keys": close_keys,
+        }
+        self._plugin_manager.send_plugin_message(self._identifier, data)
 
     def _get_mac_address(self):
         import uuid
@@ -277,7 +309,7 @@ class HomeassistantPlugin(
                 "json_attr_tpl": "{{value_json.progress|tojson}}",
                 "stat_t": "~" + self._generate_topic("progressTopic", "printing"),
                 "unit_of_meas": "%",
-                "val_tpl": "{{value_json.progress|float|default(0,true)}}",
+                "val_tpl": "{{value_json.progress|float(0)}}",
                 "device": _config_device,
             },
         )
@@ -343,7 +375,7 @@ class HomeassistantPlugin(
                 "uniq_id": _node_id + "_PRINTING_Z",
                 "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
                 "unit_of_meas": "mm",
-                "val_tpl": "{{value_json.currentZ|float}}",
+                "val_tpl": "{{value_json.currentZ|float(0)}}",
                 "device": _config_device,
                 "ic": "mdi:axis-z-arrow",
             },
@@ -357,7 +389,7 @@ class HomeassistantPlugin(
                 "uniq_id": _node_id + "_SLICING_P",
                 "stat_t": "~" + self._generate_topic("progressTopic", "slicing"),
                 "unit_of_meas": "%",
-                "val_tpl": "{{value_json.progress|float|default(0,true)}}",
+                "val_tpl": "{{value_json.progress|float(0)}}",
                 "device": _config_device,
             },
         )
@@ -391,7 +423,7 @@ class HomeassistantPlugin(
                     "stat_t": "~"
                     + self._generate_topic("temperatureTopic", "tool" + str(x)),
                     "unit_of_meas": "°C",
-                    "val_tpl": "{{value_json.actual|float}}",
+                    "val_tpl": "{{value_json.actual|float(0)}}",
                     "device": _config_device,
                     "dev_cla": "temperature",
                     "ic": "mdi:printer-3d-nozzle",
@@ -411,7 +443,7 @@ class HomeassistantPlugin(
                     "stat_t": "~"
                     + self._generate_topic("temperatureTopic", "tool" + str(x)),
                     "unit_of_meas": "°C",
-                    "val_tpl": "{{value_json.target|float}}",
+                    "val_tpl": "{{value_json.target|float(0)}}",
                     "device": _config_device,
                     "dev_cla": "temperature",
                     "ic": "mdi:printer-3d-nozzle",
@@ -426,7 +458,7 @@ class HomeassistantPlugin(
                 "uniq_id": _node_id + "_BED",
                 "stat_t": "~" + self._generate_topic("temperatureTopic", "bed"),
                 "unit_of_meas": "°C",
-                "val_tpl": "{{value_json.actual|float}}",
+                "val_tpl": "{{value_json.actual|float(0)}}",
                 "device": _config_device,
                 "dev_cla": "temperature",
                 "ic": "mdi:radiator",
@@ -439,7 +471,7 @@ class HomeassistantPlugin(
                 "uniq_id": _node_id + "_BED_TARGET",
                 "stat_t": "~" + self._generate_topic("temperatureTopic", "bed"),
                 "unit_of_meas": "°C",
-                "val_tpl": "{{value_json.target|float}}",
+                "val_tpl": "{{value_json.target|float(0)}}",
                 "device": _config_device,
                 "dev_cla": "temperature",
                 "ic": "mdi:radiator",
@@ -456,7 +488,7 @@ class HomeassistantPlugin(
                     "uniq_id": _node_id + "_CHAMBER",
                     "stat_t": "~" + self._generate_topic("temperatureTopic", "chamber"),
                     "unit_of_meas": "°C",
-                    "val_tpl": "{{value_json.actual|float}}",
+                    "val_tpl": "{{value_json.actual|float(0)}}",
                     "device": _config_device,
                     "dev_cla": "temperature",
                     "ic": "mdi:radiator",
@@ -472,7 +504,7 @@ class HomeassistantPlugin(
                     "uniq_id": _node_id + "_CHAMBER_TARGET",
                     "stat_t": "~" + self._generate_topic("temperatureTopic", "chamber"),
                     "unit_of_meas": "°C",
-                    "val_tpl": "{{value_json.target|float}}",
+                    "val_tpl": "{{value_json.target|float(0)}}",
                     "device": _config_device,
                     "dev_cla": "temperature",
                     "ic": "mdi:radiator",
@@ -487,7 +519,7 @@ class HomeassistantPlugin(
                 "uniq_id": _node_id + "_SOC",
                 "stat_t": "~" + self._generate_topic("temperatureTopic", "soc"),
                 "unit_of_meas": "°C",
-                "val_tpl": "{{value_json.temperature|float|round(1)}}",
+                "val_tpl": "{{value_json.temperature|float(0)|round(1)}}",
                 "device": _config_device,
                 "dev_cla": "temperature",
                 "ic": "mdi:radiator",

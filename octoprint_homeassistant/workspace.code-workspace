@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../../OctoPrint"
+		},
+		{
+			"path": "../../OctoPrint-MQTT"
+		},
+		{
+			"path": ".."
+		}
+	],
+	"settings": {}
+}
