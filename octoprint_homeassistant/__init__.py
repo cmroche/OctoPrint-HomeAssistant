@@ -200,6 +200,9 @@ class HomeassistantPlugin(
         self.on_print_progress("", "", 0)
         self._generate_connection_status()
 
+        if self.psucontrol_enabled:
+            self._generate_psu_state()
+
     def _get_mac_address(self):
         import uuid
 
