@@ -662,9 +662,12 @@ class HomeassistantPlugin(
                 self._logger.error("Unable to run jog command: " + str(e))
 
     def _on_command(self, topic, message, retained=None, qos=None, *args, **kwargs):
-        self._logger.debug("Jogging received gcode commands")
+        self._logger.debug("Received gcode commands %s", message)
         try:
-            self._printer.commands(message)
+            try:
+                self._printer.commands(json.loads(message))
+            except ValueError:
+                self._printer.commands(message)
         except Exception as e:
             self._logger.error("Unable to run printer commands: " + str(e))
 
