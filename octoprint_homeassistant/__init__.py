@@ -53,6 +53,7 @@ class HomeassistantPlugin(
         self.mqtt_subcribe = None
         self.update_timer = None
         self.constant_timer = None
+        self.psucontrol_enabled = False
 
     def handle_timer(self):
         self._generate_printer_status()
@@ -1025,9 +1026,10 @@ class HomeassistantPlugin(
                 allow_queueing=True,
             )
 
+
         if (
+            self.psucontrol_enabled and 
             event == Events.PLUGIN_PSUCONTROL_PSU_STATE_CHANGED
-            and self.psucontrol_enabled
         ):
             self._generate_psu_state(payload["isPSUOn"])
 
