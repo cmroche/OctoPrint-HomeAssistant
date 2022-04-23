@@ -673,6 +673,32 @@ class HomeassistantPlugin(
             except Exception as e:
                 self._logger.info("Unable to run shutdown command: " + str(e))
 
+    def _on_restart_system(self, topic, message, retained=None, qos=None, *args, **kwargs):
+        self._logger.debug("Reboot print message received: " + str(message))
+        if message:
+            _command = self._settings.global_get(
+                ["server", "commands", "systemRestartCommand"]
+            )
+            try:
+                import sarge
+
+                sarge.run(_command, async_=True)
+            except Exception as e:
+                self._logger.info("Unable to run system reboot command: " + str(e))
+
+    def _on_restart_server(self, topic, message, retained=None, qos=None, *args, **kwargs):
+        self._logger.debug("Restart print message received: " + str(message))
+        if message:
+            _command = self._settings.global_get(
+                ["server", "commands", "serverRestartCommand"]
+            )
+            try:
+                import sarge
+
+                sarge.run(_command, async_=True)
+            except Exception as e:
+                self._logger.info("Unable to run system reboot command: " + str(e))
+
     def _on_psu(self, topic, message, retained=None, qos=None, *args, **kwargs):
         message = message.decode()
         self._logger.debug("PSUControl message received: " + message)
@@ -784,15 +810,11 @@ class HomeassistantPlugin(
             )
 
         self._generate_sensor(
-            topic=_discovery_topic + "/switch/" + _node_id + "_STOP/config",
+            topic=_discovery_topic + "/button/" + _node_id + "_STOP/config",
             values={
                 "name": _node_name + " Emergency Stop",
                 "uniq_id": _node_id + "_STOP",
                 "cmd_t": "~" + self._generate_topic("controlTopic", "stop"),
-                "stat_t": "~" + self._generate_topic("controlTopic", "stop"),
-                "pl_off": "False",
-                "pl_on": "True",
-                "val_tpl": "{{False}}",
                 "device": _config_device,
                 "ic": "mdi:alert-octagon",
             },
@@ -806,18 +828,14 @@ class HomeassistantPlugin(
             )
 
         self._generate_sensor(
-            topic=_discovery_topic + "/switch/" + _node_id + "_CANCEL/config",
+            topic=_discovery_topic + "/button/" + _node_id + "_CANCEL/config",
             values={
                 "name": _node_name + " Cancel Print",
                 "uniq_id": _node_id + "_CANCEL",
                 "cmd_t": "~" + self._generate_topic("controlTopic", "cancel"),
-                "stat_t": "~" + self._generate_topic("controlTopic", "cancel"),
                 "avty_t": "~" + self._generate_topic("hassTopic", "is_printing"),
                 "pl_avail": "True",
                 "pl_not_avail": "False",
-                "pl_off": "False",
-                "pl_on": "True",
-                "val_tpl": "{{False}}",
                 "device": _config_device,
                 "ic": "mdi:cancel",
             },
@@ -847,25 +865,51 @@ class HomeassistantPlugin(
             },
         )
 
-        # Shutdown OctoPrint
+        # Shutdown, Reboot and Restart OctoPrint
         if subscribe:
             self.mqtt_subscribe(
                 self._generate_topic("controlTopic", "shutdown", full=True),
                 self._on_shutdown_system,
             )
+            self.mqtt_subscribe(
+                self._generate_topic("controlTopic", "reboot", full=True),
+                self._on_restart_system,
+            )
+            self.mqtt_subscribe(
+                self._generate_topic("controlTopic", "restart", full=True),
+                self._on_restart_server,
+            )
 
         self._generate_sensor(
-            topic=_discovery_topic + "/switch/" + _node_id + "_SHUTDOWN/config",
+            topic=_discovery_topic + "/button/" + _node_id + "_SHUTDOWN/config",
             values={
                 "name": _node_name + " Shutdown System",
                 "uniq_id": _node_id + "_SHUTDOWN",
                 "cmd_t": "~" + self._generate_topic("controlTopic", "shutdown"),
-                "stat_t": "~" + self._generate_topic("controlTopic", "shutdown"),
-                "pl_off": "False",
-                "pl_on": "True",
-                "val_tpl": "{{False}}",
                 "device": _config_device,
                 "ic": "mdi:power",
+            },
+        )
+
+        self._generate_sensor(
+            topic=_discovery_topic + "/button/" + _node_id + "_REBOOT/config",
+            values={
+                "name": _node_name + " Reboot System",
+                "uniq_id": _node_id + "_REBOOT",
+                "cmd_t": "~" + self._generate_topic("controlTopic", "reboot"),
+                "device": _config_device,
+                "ic": "mdi:restart-alert",
+            },
+        )
+
+        self._generate_sensor(
+            topic=_discovery_topic + "/button/" + _node_id + "_RESTART/config",
+            values={
+                "name": _node_name + " Restart Server",
+                "uniq_id": _node_id + "_RESTART",
+                "cmd_t": "~" + self._generate_topic("controlTopic", "restart"),
+                "device": _config_device,
+                "ic": "mdi:restart",
             },
         )
 
@@ -916,16 +960,6 @@ class HomeassistantPlugin(
                     "val_tpl": "{{False}}",
                     "device": _config_device,
                     "ic": "mdi:camera-iris",
-                },
-            )
-
-            self._generate_sensor(
-                topic=_discovery_topic + "/camera/" + _node_id + "_CAMERA/config",
-                values={
-                    "name": _node_name + " Camera",
-                    "uniq_id": _node_id + "_CAMERA",
-                    "device": _config_device,
-                    "topic": self._generate_topic("baseTopic", "camera"),
                 },
             )
 
