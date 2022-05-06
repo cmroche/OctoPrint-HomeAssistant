@@ -369,12 +369,24 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/sensor/" + _node_id + "_PRINTING_ETA/config",
             values={
-                "name": _node_name + " Print Estimated Time",
+                "name": _node_name + " Approximate Total Print Time",
                 "uniq_id": _node_id + "_PRINTING_ETA",
                 "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
                 "json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
                 "json_attr_tpl": "{{value_json.job|tojson}}",
                 "val_tpl": "{{value_json.job.estimatedPrintTimeFormatted}}",
+                "device": _config_device,
+            },
+        )
+
+        ##~~ Configure Print Remaining Time
+        self._generate_sensor(
+            topic=_discovery_topic + "/sensor/" + _node_id + "_PRINTING_C/config",
+            values={
+                "name": _node_name + " Approximate Completion Time",
+                "uniq_id": _node_id + "_PRINTING_C",
+                "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
+                "val_tpl": "{{(now() + timedelta(seconds=value_json.progress.printTimeLeft|int(default=0))).timestamp()|timestamp_custom('%b %d, %X')}}",
                 "device": _config_device,
             },
         )
