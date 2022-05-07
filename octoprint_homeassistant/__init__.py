@@ -386,7 +386,7 @@ class HomeassistantPlugin(
                 "name": _node_name + " Approximate Completion Time",
                 "uniq_id": _node_id + "_PRINTING_C",
                 "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
-                "val_tpl": "{{(now() + timedelta(seconds=value_json.progress.printTimeLeft|int(default=0))).timestamp()|timestamp_custom('%b %d, %X')}}",
+                "val_tpl": "{{'None' if not value_json.progress.printTimeLeft else (now() + timedelta(seconds=value_json.progress.printTimeLeft|int(default=0))).timestamp()|timestamp_custom('%b %d, %X')}}",
                 "device": _config_device,
             },
         )
