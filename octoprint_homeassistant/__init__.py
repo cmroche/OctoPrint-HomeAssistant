@@ -212,6 +212,11 @@ class HomeassistantPlugin(
     def _on_mqtt_message(
         self, topic, message, retained=None, qos=None, *args, **kwargs
     ):
+        try:
+            message = message.decode()
+        except (UnicodeDecodeError, AttributeError):
+            pass
+
         self._logger.info("Received MQTT message from " + topic)
         self._logger.info(message)
 
