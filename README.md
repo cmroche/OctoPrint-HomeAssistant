@@ -47,7 +47,8 @@ To use this example, you will need the custom components (available from [HACS](
 
 - [Stack in Card](https://github.com/custom-cards/stack-in-card)
 - [Bar Card](https://github.com/custom-cards/bar-card)
-
+- [Mini Graph Card](https://github.com/kalkih/mini-graph-card)
+- 
 ```yaml
 cards:
   - cards:
