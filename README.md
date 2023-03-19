@@ -48,7 +48,7 @@ To use this example, you will need the custom components (available from [HACS](
 - [Stack in Card](https://github.com/custom-cards/stack-in-card)
 - [Bar Card](https://github.com/custom-cards/bar-card)
 - [Mini Graph Card](https://github.com/kalkih/mini-graph-card)
-- 
+-
 ```yaml
 cards:
   - cards:
@@ -255,3 +255,10 @@ One user (thanks @pinkywafer) tested shutdown time and found it took from 5 seco
       entity_id: switch.ender3
       type: turn_off
 ```
+
+### Sending commands to the printer using a Blueprint
+
+One user (thanks @SirGoodenough) has created a blueprint that will generate most of the same printer commands using this Plug-In.
+If you would like to check that out, the link for that BluePrint is here:
+
+[🧯 Octoprint Additional Buttons Helper](https://github.com/SirGoodenough/HA_Blueprints/blob/master/Automations/Octoprint_Additional_Buttons_Helper.md)
