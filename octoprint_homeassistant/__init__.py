@@ -659,27 +659,35 @@ class HomeassistantPlugin(
     def _on_emergency_stop(
         self, topic, message, retained=None, qos=None, *args, **kwargs
     ):
+        # In Home Assistant, MQTT buttons send the message 'PRESS' when pressed.
         self._logger.debug("Emergency stop message received: " + str(message))
-        if message:
+        if message == b"PRESS":
             self._printer.commands("M112")
+        else:
+            self._logger.error("Unknown message received: " + str(message))
 
     def _on_cancel_print(
         self, topic, message, retained=None, qos=None, *args, **kwargs
     ):
         self._logger.debug("Cancel print message received: " + str(message))
-        if message:
+        if message == b"PRESS":
             self._printer.cancel_print()
+        else:
+            self._logger.error("Unknown message received: " + str(message))
 
     def _on_pause_print(self, topic, message, retained=None, qos=None, *args, **kwargs):
+        # In Home Assistant, MQTT switches send the message 'True' when turned on and 'False' when turned off.
         self._logger.debug("Pause print message received: " + str(message))
-        if message:
+        if message == b"True":
             self._printer.pause_print()
-        else:
+        elif message == b"False":
             self._printer.resume_print()
+        else:
+            self._logger.error("Unknown message received: " + str(message))
 
     def _on_shutdown_system(self, topic, message, retained=None, qos=None, *args, **kwargs):
         self._logger.debug("Shutdown print message received: " + str(message))
-        if message:
+        if message == b"PRESS":
             shutdown_command = self._settings.global_get(
                 ["server", "commands", "systemShutdownCommand"]
             )
@@ -689,10 +697,12 @@ class HomeassistantPlugin(
                 sarge.run(shutdown_command, async_=True)
             except Exception as e:
                 self._logger.info("Unable to run shutdown command: " + str(e))
+        else:
+            self._logger.error("Unknown message received: " + str(message))
 
     def _on_restart_system(self, topic, message, retained=None, qos=None, *args, **kwargs):
         self._logger.debug("Reboot print message received: " + str(message))
-        if message:
+        if message == b"PRESS":
             _command = self._settings.global_get(
                 ["server", "commands", "systemRestartCommand"]
             )
@@ -702,10 +712,12 @@ class HomeassistantPlugin(
                 sarge.run(_command, async_=True)
             except Exception as e:
                 self._logger.info("Unable to run system reboot command: " + str(e))
+        else:
+            self._logger.error("Unknown message received: " + str(message))
 
     def _on_restart_server(self, topic, message, retained=None, qos=None, *args, **kwargs):
         self._logger.debug("Restart print message received: " + str(message))
-        if message:
+        if message == b"PRESS":
             _command = self._settings.global_get(
                 ["server", "commands", "serverRestartCommand"]
             )
@@ -715,6 +727,8 @@ class HomeassistantPlugin(
                 sarge.run(_command, async_=True)
             except Exception as e:
                 self._logger.info("Unable to run system reboot command: " + str(e))
+        else:
+            self._logger.error("Unknown message received: " + str(message))
 
     def _on_psu(self, topic, message, retained=None, qos=None, *args, **kwargs):
         message = message.decode()
@@ -722,13 +736,15 @@ class HomeassistantPlugin(
         if message == "True":
             self._logger.info("Turning on PSU")
             self.turn_psu_on()
-        else:
+        elif message == "False":
             self._logger.info("Turning off PSU")
             self.turn_psu_off()
+        else:
+            self._logger.error("Unknown message received: " + str(message))
 
     def _on_camera(self, topic, message, retained=None, qos=None, *args, **kwargs):
         self._logger.debug("Camera snapshot message received: " + str(message))
-        if self.snapshot_enabled:
+        if self.snapshot_enabled and message == b"PRESS":
             import urllib.request as urlreq
 
             url_handle = urlreq.urlopen(self.snapshot_path)
@@ -740,14 +756,18 @@ class HomeassistantPlugin(
                 allow_queueing=False,
                 raw_data=True,
             )
+        elif self.snapshot_enabled and not message == "PRESS":
+            self._logger.error("Unknown message received: " + str(message))
 
     def _on_connect_printer(self, topic, message, retained=None, qos=None, *args, **kwargs):
         self._logger.debug("(Dis)Connecting to printer" + str(message))
         try:
-          if message == b'on':
+          if message == b'True':
             self._printer.connect()
-          else:
+          elif message == b'False':
             self._printer.disconnect()
+          else:
+            self._logger.error("Unknown message received: " + str(message))
         except Exception as e:
           self._logger.error("Unable to run connect command: " + str(e))
 
