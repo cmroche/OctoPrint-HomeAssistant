@@ -15,7 +15,6 @@ from octoprint.events import Events, eventManager
 from octoprint.server import user_permission
 from octoprint.settings import settings
 from octoprint.util import RepeatedTimer
-from octoprint.util.version import is_octoprint_compatible
 
 SETTINGS_DEFAULTS = dict(
     unique_id=None,
@@ -831,8 +830,8 @@ class HomeassistantPlugin(
                 "uniq_id": _node_id + "_CONNECT",
                 "cmd_t": "~" + self._generate_topic("controlTopic", "connect"),
                 "stat_t": self._generate_topic("hassTopic", "Connected", full=True),
-                "pl_off": "off" if is_octoprint_compatible("<1.9.0") else "False",
-                "pl_on": "on" if is_octoprint_compatible("<1.9.0") else "True",
+                "pl_off": "False",
+                "pl_on": "True",
                 "stat_on": "Connected",
                 "stat_off": "Disconnected",
                 "device": _config_device,
