@@ -381,7 +381,7 @@ class HomeassistantPlugin(
                 "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
                 "json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
                 "json_attr_tpl": "{{value_json.job|tojson}}",
-                "val_tpl": "{{'None' if not value_json.job.estimatedPrintTime else as_timestamp(value_json.job.estimatedPrintTime)}}",
+                "val_tpl": "{{'None' if not value_json.job.estimatedPrintTime else timedelta(seconds=42015.84501460965 | int(default=0))}}",
                 "dev_cla": "timestamp",
                 "device": _config_device,
             },
