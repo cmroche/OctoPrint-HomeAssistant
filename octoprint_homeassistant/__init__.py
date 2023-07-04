@@ -352,6 +352,7 @@ class HomeassistantPlugin(
                 "uniq_id": _node_id + "_PRINTING_T",
                 "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
                 "stat_cla": "measurement",
+                "dev_cla": "timestamp",
                 "val_tpl": "{{value_json.progress.printTimeFormatted}}",
                 "device": _config_device,
                 "ic": "mdi:clock-start",
@@ -366,6 +367,7 @@ class HomeassistantPlugin(
                 "uniq_id": _node_id + "_PRINTING_E",
                 "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
                 "stat_cla": "measurement",
+                "dev_cla": "timestamp",
                 "val_tpl": "{{value_json.progress.printTimeLeftFormatted}}",
                 "device": _config_device,
                 "ic": "mdi:clock-end",
@@ -394,6 +396,7 @@ class HomeassistantPlugin(
                 "uniq_id": _node_id + "_PRINTING_C",
                 "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
                 "stat_cla": "measurement",
+                "dev_cla": "timestamp",
                 "val_tpl": "{{'None' if not value_json.progress.printTimeLeft else (now() + timedelta(seconds=value_json.progress.printTimeLeft|int(default=0))).timestamp()|timestamp_custom('%b %d, %X')}}",
                 "device": _config_device,
             },
@@ -1105,7 +1108,7 @@ class HomeassistantPlugin(
 
 
         if (
-            self.psucontrol_enabled and 
+            self.psucontrol_enabled and
             event == Events.PLUGIN_PSUCONTROL_PSU_STATE_CHANGED
         ):
             self._generate_psu_state(payload["isPSUOn"])
