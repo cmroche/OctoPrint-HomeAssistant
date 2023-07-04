@@ -366,7 +366,7 @@ class HomeassistantPlugin(
                 "name": _node_name + " Print Time Left",
                 "uniq_id": _node_id + "_PRINTING_E",
                 "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
-                "val_tpl": "{{'None' if not value_json.progress.printTimeLeft else value_json.job.estimatedPrintTimeLeft}}",
+                "val_tpl": "{{'None' if not value_json.progress.printTimeLeft else value_json.progress.printTimeLeft}}",
                 "dev_cla": "duration",
                 "unit_of_meas": "s",
                 "device": _config_device,
