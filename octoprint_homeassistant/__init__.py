@@ -4,15 +4,11 @@ from __future__ import absolute_import
 import datetime
 import json
 import logging
-import os
 import re
-import threading
-import time
 
 import psutil
 import octoprint.plugin
-from octoprint.events import Events, eventManager
-from octoprint.server import user_permission
+from octoprint.events import Events
 from octoprint.settings import settings
 from octoprint.util import RepeatedTimer
 
@@ -351,8 +347,17 @@ class HomeassistantPlugin(
                 "name": _node_name + " Print Time",
                 "uniq_id": _node_id + "_PRINTING_T",
                 "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
-                "stat_cla": "measurement",
-                "val_tpl": "{{value_json.progress.printTimeFormatted}}",
+                "avty": [
+                    {
+                        "t": "~" + self._generate_topic("hassTopic", "printing"),
+                        "val_tpl": "{{'False' if not value_json.progress.printTime else 'True'}}",
+                        "pl_avail": "True",
+                        "pl_not_avail": "False",
+                    }
+                ],
+                "val_tpl": "{{value_json.progress.printTime}}",
+                "dev_cla": "duration",
+                "unit_of_meas": "s",
                 "device": _config_device,
                 "ic": "mdi:clock-start",
             },
@@ -365,8 +370,17 @@ class HomeassistantPlugin(
                 "name": _node_name + " Print Time Left",
                 "uniq_id": _node_id + "_PRINTING_E",
                 "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
-                "stat_cla": "measurement",
-                "val_tpl": "{{value_json.progress.printTimeLeftFormatted}}",
+                "avty": [
+                    {
+                        "t": "~" + self._generate_topic("hassTopic", "printing"),
+                        "val_tpl": "{{'False' if not value_json.progress.printTimeLeft else 'True'}}",
+                        "pl_avail": "True",
+                        "pl_not_avail": "False",
+                    }
+                ],
+                "val_tpl": "{{value_json.progress.printTimeLeft}}",
+                "dev_cla": "duration",
+                "unit_of_meas": "s",
                 "device": _config_device,
                 "ic": "mdi:clock-end",
             },
@@ -381,7 +395,17 @@ class HomeassistantPlugin(
                 "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
                 "json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
                 "json_attr_tpl": "{{value_json.job|tojson}}",
-                "val_tpl": "{{value_json.job.estimatedPrintTimeFormatted}}",
+                "avty": [
+                    {
+                        "t": "~" + self._generate_topic("hassTopic", "printing"),
+                        "val_tpl": "{{'False' if not value_json.job.estimatedPrintTime else 'True'}}",
+                        "pl_avail": "True",
+                        "pl_not_avail": "False",
+                    },
+                ],
+                "val_tpl": "{{value_json.job.estimatedPrintTime}}",
+                "dev_cla": "duration",
+                "unit_of_meas": "s",
                 "device": _config_device,
             },
         )
@@ -393,8 +417,16 @@ class HomeassistantPlugin(
                 "name": _node_name + " Approximate Completion Time",
                 "uniq_id": _node_id + "_PRINTING_C",
                 "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
-                "stat_cla": "measurement",
-                "val_tpl": "{{'None' if not value_json.progress.printTimeLeft else (now() + timedelta(seconds=value_json.progress.printTimeLeft|int(default=0))).timestamp()|timestamp_custom('%b %d, %X')}}",
+                "avty": [
+                    {
+                        "t": "~" + self._generate_topic("hassTopic", "printing"),
+                        "val_tpl": "{{'False' if not value_json.progress.printTimeLeft else 'True'}}",
+                        "pl_avail": "True",
+                        "pl_not_avail": "False",
+                    },
+                ],
+                "val_tpl": "{{now() + timedelta(seconds=value_json.progress.printTimeLeft|int(default=0))}}",
+                "dev_cla": "timestamp",
                 "device": _config_device,
             },
         )
@@ -559,13 +591,22 @@ class HomeassistantPlugin(
         )
 
     def _generate_sensor(self, topic, values):
-        payload = {
-            "avty_t": "~" + self._generate_topic("lwTopic", ""),
+        payload={}
+        payload.update({
+            "avty": [],
+            "~": self._generate_topic("baseTopic", "", full=True),
+        })
+
+        # Add in set values
+        payload.update(values)
+
+        # Append default availability topic
+        payload["avty"].append({
+            "t": "~" + self._generate_topic("lwTopic", ""),
             "pl_avail": "connected",
             "pl_not_avail": "disconnected",
-            "~": self._generate_topic("baseTopic", "", full=True),
-        }
-        payload.update(values)
+        })
+
         self.mqtt_publish(topic, payload, allow_queueing=True)
 
     def _generate_device_config(
@@ -873,9 +914,13 @@ class HomeassistantPlugin(
                 "name": _node_name + " Cancel Print",
                 "uniq_id": _node_id + "_CANCEL",
                 "cmd_t": "~" + self._generate_topic("controlTopic", "cancel"),
-                "avty_t": "~" + self._generate_topic("hassTopic", "is_printing"),
-                "pl_avail": "True",
-                "pl_not_avail": "False",
+                "avty": [
+                    {
+                        "t": "~" + self._generate_topic("hassTopic", "is_printing"),
+                        "pl_avail": "True",
+                        "pl_not_avail": "False",
+                    },
+                ],
                 "device": _config_device,
                 "ic": "mdi:cancel",
             },
@@ -895,9 +940,13 @@ class HomeassistantPlugin(
                 "uniq_id": _node_id + "_PAUSE",
                 "cmd_t": "~" + self._generate_topic("controlTopic", "pause"),
                 "stat_t": "~" + self._generate_topic("hassTopic", "is_paused"),
-                "avty_t": "~" + self._generate_topic("hassTopic", "is_printing"),
-                "pl_avail": "True",
-                "pl_not_avail": "False",
+                "avty": [
+                    {
+                        "t": "~" + self._generate_topic("hassTopic", "is_printing"),
+                        "pl_avail": "True",
+                        "pl_not_avail": "False",
+                    },
+                ],
                 "pl_off": "False",
                 "pl_on": "True",
                 "device": _config_device,
@@ -1104,10 +1153,7 @@ class HomeassistantPlugin(
             )
 
 
-        if (
-            self.psucontrol_enabled and 
-            event == Events.PLUGIN_PSUCONTROL_PSU_STATE_CHANGED
-        ):
+        if self.psucontrol_enabled and event == Events.PLUGIN_PSUCONTROL_PSU_STATE_CHANGED:
             self._generate_psu_state(payload["isPSUOn"])
 
         if event == Events.CAPTURE_DONE:
