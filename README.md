@@ -1,6 +1,6 @@
 # OctoPrint-HomeAssistant
 
-Enable MQTT based discovery of your OctoPrint server with Home Assistant.
+Enable MQTT based discovery of one or more OctoPrint servers within Home Assistant.
 
 ## Setup
 
@@ -48,7 +48,7 @@ To use this example, you will need the custom components (available from [HACS](
 - [Stack in Card](https://github.com/custom-cards/stack-in-card)
 - [Bar Card](https://github.com/custom-cards/bar-card)
 - [Mini Graph Card](https://github.com/kalkih/mini-graph-card)
--
+
 ```yaml
 cards:
   - cards:
@@ -262,3 +262,34 @@ One user (thanks @SirGoodenough) has created a blueprint that will generate most
 If you would like to check that out, the link for that BluePrint is here:
 
 [🧯 Octoprint Additional Buttons Helper](https://github.com/SirGoodenough/HA_Blueprints/blob/master/Automations/Octoprint_Additional_Buttons_Helper.md)
+
+## Breaking Changes
+
+### Print Time Formatting < v3.5.6
+
+The time data that used to be sent to Home Assistant (octoprint-homeassistant > v3.6.3) had to be changed to allow for Print Time graphs. With this change, it means that the received value for Print Time, Print Time Left and Approximate Total Print Time is now in seconds. This will require formatting before being used in it's raw state. In a notification for example:
+
+```yaml
+service: notify.mobile_app_somedevice
+data:
+  title: Printing {{ states(`sensor.octoprint_print_file`) }}
+  message: >-
+    Your print has {{ timedelta(seconds=states(`sensor.octoprint_print_time_left`)|int(default=0)) }} left,
+    after {{ timedelta(seconds=states(`sensor.octoprint_print_time`)|int(default=0)) }}.
+    Current Z{{ states(`sensor.octoprint_current_z`) }}
+  data:
+    notification_icon: mdi:printer-3d
+```
+
+This new method allows you to format the time however you would like within Home Assistant.
+
+_It is possible to still use the old formatting for the time sensors by reading the attributes of some of the sensors._
+
+- Approximate Total Print Time:
+  `state_attr('sensor.octoprint_approximate_total_print_time', 'EstimatedPrintTimeFormatted')`
+
+- Print Time:
+  `state_attr('sensor.octoprint_print_progress', 'PrintTimeFormatted')`
+
+- Print Time Left:
+  `state_attr('sensor.octoprint_print_progress', 'PrintTimeLeftFormatted')`
