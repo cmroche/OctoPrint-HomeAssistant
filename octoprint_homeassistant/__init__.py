@@ -182,6 +182,7 @@ class HomeassistantPlugin(
         # Since retain may not be used it's not always possible to simply tie this to the connected state
         self._generate_device_registration()
         self._generate_device_controls(subscribe=True)
+        self._generate_device_triggers()
 
         # For people who do not have retain setup, need to do this again to make sensors available
         _connected_topic = self._generate_topic("lwTopic", "", full=True)
@@ -224,6 +225,7 @@ class HomeassistantPlugin(
         if message == "connected":
             self._generate_device_registration()
             self._generate_device_controls(subscribe=False)
+            self._generate_device_triggers()
 
     def _generate_topic(self, topic_type, topic, full=False):
         self._logger.debug("Generating topic for " + topic_type + ", " + topic)
@@ -1020,6 +1022,98 @@ class HomeassistantPlugin(
                 self._on_command,
             )
 
+    def _generate_device_triggers(self):
+
+        _discovery_topic = self._settings.get(["discovery_topic"])
+
+        _node_name = self._settings.get(["node_name"])
+        _node_id = self._settings.get(["node_id"])
+
+        _device_manufacturer = self._settings.get(["device_manufacturer"])
+        _device_model = self._settings.get(["device_model"])
+
+        _config_device = self._generate_device_config(
+            _node_id, _node_name, _device_manufacturer, _device_model
+        )
+
+        ##~~ Print Start event trigger
+        self._generate_sensor(
+            topic=_discovery_topic + "/device_automation/" + _node_id + "_PRINT_STARTED/config",
+            values={
+                "atype": "trigger",
+                "type": "event",
+                "stype": "Print Started",
+                "pl": "PrintStarted",
+                "t": "~" + self._generate_topic("hassTopic", "device_trigger"),
+                "device": _config_device,
+            },
+        )
+
+        ##~~ Print Failed event trigger
+        self._generate_sensor(
+            topic=_discovery_topic + "/device_automation/" + _node_id + "_PRINT_FAILED/config",
+            values={
+                "atype": "trigger",
+                "type": "event",
+                "stype": "Print Failed",
+                "pl": "PrintFailed",
+                "t": "~" + self._generate_topic("hassTopic", "device_trigger"),
+                "device": _config_device,
+            },
+        )
+
+        ##~~ Print Done event trigger
+        self._generate_sensor(
+            topic=_discovery_topic + "/device_automation/" + _node_id + "_PRINT_DONE/config",
+            values={
+                "atype": "trigger",
+                "type": "event",
+                "stype": "Print Complete",
+                "pl": "PrintDone",
+                "t": "~" + self._generate_topic("hassTopic", "device_trigger"),
+                "device": _config_device,
+            },
+        )
+
+        ##~~ Print Cancelled event trigger
+        self._generate_sensor(
+            topic=_discovery_topic + "/device_automation/" + _node_id + "_PRINT_CANCELLED/config",
+            values={
+                "atype": "trigger",
+                "type": "event",
+                "stype": "Print Cancelled",
+                "pl": "PrintCancelled",
+                "t": "~" + self._generate_topic("hassTopic", "device_trigger"),
+                "device": _config_device,
+            },
+        )
+
+        ##~~ Print Paused event trigger
+        self._generate_sensor(
+            topic=_discovery_topic + "/device_automation/" + _node_id + "_PRINT_PAUSED/config",
+            values={
+                "atype": "trigger",
+                "type": "event",
+                "stype": "Print Paused",
+                "pl": "PrintPaused",
+                "t": "~" + self._generate_topic("hassTopic", "device_trigger"),
+                "device": _config_device,
+            },
+        )
+
+        ##~~ Print Resumed event trigger
+        self._generate_sensor(
+            topic=_discovery_topic + "/device_automation/" + _node_id + "_PRINT_RESUMED/config",
+            values={
+                "atype": "trigger",
+                "type": "event",
+                "stype": "Print Resumed",
+                "pl": "PrintResumed",
+                "t": "~" + self._generate_topic("hassTopic", "device_trigger"),
+                "device": _config_device,
+            },
+        )
+
     ##~~ EventHandlerPlugin API
 
     def on_event(self, event, payload):
@@ -1060,6 +1154,20 @@ class HomeassistantPlugin(
         ):
             self._logger.debug("Received event " + event + ", updating status")
             self._generate_printer_status()
+
+        if event in (
+            Events.PRINT_STARTED,
+            Events.PRINT_FAILED,
+            Events.PRINT_DONE,
+            Events.PRINT_CANCELLED,
+            Events.PRINT_PAUSED,
+            Events.PRINT_RESUMED,
+        ):
+            self.mqtt_publish(
+                self._generate_topic("hassTopic", "device_trigger", full=True),
+                event,
+                allow_queueing=True,
+            )
 
         if event == Events.PRINT_STARTED:
             if self.update_timer:
@@ -1105,7 +1213,7 @@ class HomeassistantPlugin(
 
 
         if (
-            self.psucontrol_enabled and 
+            self.psucontrol_enabled and
             event == Events.PLUGIN_PSUCONTROL_PSU_STATE_CHANGED
         ):
             self._generate_psu_state(payload["isPSUOn"])
