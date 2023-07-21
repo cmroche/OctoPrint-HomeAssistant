@@ -1153,7 +1153,10 @@ class HomeassistantPlugin(
             )
 
 
-        if self.psucontrol_enabled and event == Events.PLUGIN_PSUCONTROL_PSU_STATE_CHANGED:
+        if (
+            self.psucontrol_enabled and
+            event == Events.PLUGIN_PSUCONTROL_PSU_STATE_CHANGED
+        ):
             self._generate_psu_state(payload["isPSUOn"])
 
         if event == Events.CAPTURE_DONE:
