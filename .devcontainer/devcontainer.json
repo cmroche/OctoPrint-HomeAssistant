@@ -35,18 +35,22 @@
 
   "features": {
     "ghcr.io/devcontainers/features/sshd:1": {
-      "version": "latest",
+      "version": "latest"
     }
   },
 
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
-  // "forwardPorts": [9000],
+  "forwardPorts": [5000,8123],
 
   // Use 'portsAttributes' to set default properties for specific forwarded ports.
   // More info: https://containers.dev/implementors/json_reference/#port-attributes
   "portsAttributes": {
-    "9000": {
-      "label": "Hello Remote World",
+    "5000": {
+      "label": "OctoPrint Web Interface",
+      "onAutoForward": "notify"
+    },
+    "8123": {
+      "label": "HomeAssistant Web Interface",
       "onAutoForward": "notify"
     }
   }
