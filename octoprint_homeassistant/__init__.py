@@ -320,9 +320,10 @@ class HomeassistantPlugin(
                 "uniq_id": _node_id + "_PRINTING_P",
                 "json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
                 "json_attr_tpl": "{{value_json.progress|tojson}}",
-                "stat_t": "~" + self._generate_topic("progressTopic", "printing"),
+                "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
                 "unit_of_meas": "%",
-                "val_tpl": "{{value_json.progress|float(0)}}",
+                "val_tpl": "{{value_json.progress.completion|float(0)|round(4)}}",
+                "sug_dsp_prc": 2,
                 "device": _config_device,
             },
         )
