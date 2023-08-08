@@ -4,15 +4,11 @@ from __future__ import absolute_import
 import datetime
 import json
 import logging
-import os
 import re
-import threading
-import time
 
 import psutil
 import octoprint.plugin
-from octoprint.events import Events, eventManager
-from octoprint.server import user_permission
+from octoprint.events import Events
 from octoprint.settings import settings
 from octoprint.util import RepeatedTimer
 
@@ -266,7 +262,7 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/binary_sensor/" + _node_id + "_CONNECTED/config",
             values={
-                "name": _node_name + " Connected",
+                "name": "Connected",
                 "uniq_id": _node_id + "_CONNECTED",
                 "stat_t": "~" + self._generate_topic("hassTopic", "Connected"),
                 "pl_on": "Connected",
@@ -280,7 +276,7 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/binary_sensor/" + _node_id + "_PRINTING/config",
             values={
-                "name": _node_name + " Printing",
+                "name": "Printing",
                 "uniq_id": _node_id + "_PRINTING",
                 "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
                 "pl_on": "True",
@@ -294,7 +290,7 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/sensor/" + _node_id + "_EVENT/config",
             values={
-                "name": _node_name + " Last Event",
+                "name": "Last event",
                 "uniq_id": _node_id + "_EVENT",
                 "stat_t": "~" + self._generate_topic("eventTopic", "+"),
                 "val_tpl": "{{value_json._event}}",
@@ -306,7 +302,7 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/sensor/" + _node_id + "_PRINTING_S/config",
             values={
-                "name": _node_name + " Print Status",
+                "name": "Print status",
                 "uniq_id": _node_id + "_PRINTING_S",
                 "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
                 "json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
@@ -320,7 +316,7 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/sensor/" + _node_id + "_PRINTING_P/config",
             values={
-                "name": _node_name + " Print Progress",
+                "name": "Print progress",
                 "uniq_id": _node_id + "_PRINTING_P",
                 "json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
                 "json_attr_tpl": "{{value_json.progress|tojson}}",
@@ -336,7 +332,7 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/sensor/" + _node_id + "_PRINTING_F/config",
             values={
-                "name": _node_name + " Print File",
+                "name": "Print file",
                 "uniq_id": _node_id + "_PRINTING_F",
                 "stat_t": "~" + self._generate_topic("progressTopic", "printing"),
                 "val_tpl": "{{value_json.path}}",
@@ -349,11 +345,20 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/sensor/" + _node_id + "_PRINTING_T/config",
             values={
-                "name": _node_name + " Print Time",
+                "name": "Print time",
                 "uniq_id": _node_id + "_PRINTING_T",
                 "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
-                "stat_cla": "measurement",
-                "val_tpl": "{{value_json.progress.printTimeFormatted}}",
+                "avty": [
+                    {
+                        "t": "~" + self._generate_topic("hassTopic", "printing"),
+                        "val_tpl": "{{'False' if not value_json.progress.printTime else 'True'}}",
+                        "pl_avail": "True",
+                        "pl_not_avail": "False",
+                    }
+                ],
+                "val_tpl": "{{value_json.progress.printTime}}",
+                "dev_cla": "duration",
+                "unit_of_meas": "s",
                 "device": _config_device,
                 "ic": "mdi:clock-start",
             },
@@ -363,11 +368,20 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/sensor/" + _node_id + "_PRINTING_E/config",
             values={
-                "name": _node_name + " Print Time Left",
+                "name": "Print time left",
                 "uniq_id": _node_id + "_PRINTING_E",
                 "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
-                "stat_cla": "measurement",
-                "val_tpl": "{{value_json.progress.printTimeLeftFormatted}}",
+                "avty": [
+                    {
+                        "t": "~" + self._generate_topic("hassTopic", "printing"),
+                        "val_tpl": "{{'False' if not value_json.progress.printTimeLeft else 'True'}}",
+                        "pl_avail": "True",
+                        "pl_not_avail": "False",
+                    }
+                ],
+                "val_tpl": "{{value_json.progress.printTimeLeft}}",
+                "dev_cla": "duration",
+                "unit_of_meas": "s",
                 "device": _config_device,
                 "ic": "mdi:clock-end",
             },
@@ -377,12 +391,22 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/sensor/" + _node_id + "_PRINTING_ETA/config",
             values={
-                "name": _node_name + " Approximate Total Print Time",
+                "name": "Approximate total print time",
                 "uniq_id": _node_id + "_PRINTING_ETA",
                 "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
                 "json_attr_t": "~" + self._generate_topic("hassTopic", "printing"),
                 "json_attr_tpl": "{{value_json.job|tojson}}",
-                "val_tpl": "{{value_json.job.estimatedPrintTimeFormatted}}",
+                "avty": [
+                    {
+                        "t": "~" + self._generate_topic("hassTopic", "printing"),
+                        "val_tpl": "{{'False' if not value_json.job.estimatedPrintTime else 'True'}}",
+                        "pl_avail": "True",
+                        "pl_not_avail": "False",
+                    },
+                ],
+                "val_tpl": "{{value_json.job.estimatedPrintTime}}",
+                "dev_cla": "duration",
+                "unit_of_meas": "s",
                 "device": _config_device,
             },
         )
@@ -391,11 +415,19 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/sensor/" + _node_id + "_PRINTING_C/config",
             values={
-                "name": _node_name + " Approximate Completion Time",
+                "name": "Approximate completion time",
                 "uniq_id": _node_id + "_PRINTING_C",
                 "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
-                "stat_cla": "measurement",
-                "val_tpl": "{{'None' if not value_json.progress.printTimeLeft else (now() + timedelta(seconds=value_json.progress.printTimeLeft|int(default=0))).timestamp()|timestamp_custom('%b %d, %X')}}",
+                "avty": [
+                    {
+                        "t": "~" + self._generate_topic("hassTopic", "printing"),
+                        "val_tpl": "{{'False' if not value_json.progress.printTimeLeft else 'True'}}",
+                        "pl_avail": "True",
+                        "pl_not_avail": "False",
+                    },
+                ],
+                "val_tpl": "{{now() + timedelta(seconds=value_json.progress.printTimeLeft|int(default=0))}}",
+                "dev_cla": "timestamp",
                 "device": _config_device,
             },
         )
@@ -404,7 +436,7 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/sensor/" + _node_id + "_PRINTING_Z/config",
             values={
-                "name": _node_name + " Current Z",
+                "name": "Current Z",
                 "uniq_id": _node_id + "_PRINTING_Z",
                 "stat_t": "~" + self._generate_topic("hassTopic", "printing"),
                 "unit_of_meas": "mm",
@@ -418,7 +450,7 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/sensor/" + _node_id + "_SLICING_P/config",
             values={
-                "name": _node_name + " Slicing Progress",
+                "name": "Slicing progress",
                 "uniq_id": _node_id + "_SLICING_P",
                 "stat_t": "~" + self._generate_topic("progressTopic", "slicing"),
                 "unit_of_meas": "%",
@@ -431,7 +463,7 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/sensor/" + _node_id + "_SLICING_F/config",
             values={
-                "name": _node_name + " Slicing File",
+                "name": "Slicing file",
                 "uniq_id": _node_id + "_SLICING_F",
                 "stat_t": "~" + self._generate_topic("progressTopic", "slicing"),
                 "val_tpl": "{{value_json.source_path}}",
@@ -451,7 +483,7 @@ class HomeassistantPlugin(
                 + str(x)
                 + "/config",
                 values={
-                    "name": _node_name + " Tool " + str(x) + " Temperature",
+                    "name": "Tool " + str(x) + " temperature",
                     "uniq_id": _node_id + "_TOOL" + str(x),
                     "stat_t": "~"
                     + self._generate_topic("temperatureTopic", "tool" + str(x)),
@@ -471,7 +503,7 @@ class HomeassistantPlugin(
                 + "_TARGET"
                 + "/config",
                 values={
-                    "name": _node_name + " Tool " + str(x) + " Target",
+                    "name": "Tool " + str(x) + " target",
                     "uniq_id": _node_id + "_TOOL" + str(x) + "_TARGET",
                     "stat_t": "~"
                     + self._generate_topic("temperatureTopic", "tool" + str(x)),
@@ -487,7 +519,7 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/sensor/" + _node_id + "_BED/config",
             values={
-                "name": _node_name + " Bed Temperature",
+                "name": "Bed temperature",
                 "uniq_id": _node_id + "_BED",
                 "stat_t": "~" + self._generate_topic("temperatureTopic", "bed"),
                 "unit_of_meas": "°C",
@@ -500,7 +532,7 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/sensor/" + _node_id + "_BED_TARGET/config",
             values={
-                "name": _node_name + " Bed Target",
+                "name": "Bed target",
                 "uniq_id": _node_id + "_BED_TARGET",
                 "stat_t": "~" + self._generate_topic("temperatureTopic", "bed"),
                 "unit_of_meas": "°C",
@@ -517,7 +549,7 @@ class HomeassistantPlugin(
             self._generate_sensor(
                 topic=_discovery_topic + "/sensor/" + _node_id + "_CHAMBER/config",
                 values={
-                    "name": _node_name + " Chamber Temperature",
+                    "name": "Chamber temperature",
                     "uniq_id": _node_id + "_CHAMBER",
                     "stat_t": "~" + self._generate_topic("temperatureTopic", "chamber"),
                     "unit_of_meas": "°C",
@@ -533,7 +565,7 @@ class HomeassistantPlugin(
                 + _node_id
                 + "_CHAMBER_TARGET/config",
                 values={
-                    "name": _node_name + " Chamber Target",
+                    "name": "Chamber target",
                     "uniq_id": _node_id + "_CHAMBER_TARGET",
                     "stat_t": "~" + self._generate_topic("temperatureTopic", "chamber"),
                     "unit_of_meas": "°C",
@@ -548,7 +580,7 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic="homeassistant/sensor/" + _node_id + "_SOC/config",
             values={
-                "name": _node_name + " SoC Temperature",
+                "name": "SoC temperature",
                 "uniq_id": _node_id + "_SOC",
                 "stat_t": "~" + self._generate_topic("temperatureTopic", "soc"),
                 "unit_of_meas": "°C",
@@ -560,13 +592,22 @@ class HomeassistantPlugin(
         )
 
     def _generate_sensor(self, topic, values):
-        payload = {
-            "avty_t": "~" + self._generate_topic("lwTopic", ""),
+        payload={}
+        payload.update({
+            "avty": [],
+            "~": self._generate_topic("baseTopic", "", full=True),
+        })
+
+        # Add in set values
+        payload.update(values)
+
+        # Append default availability topic
+        payload["avty"].append({
+            "t": "~" + self._generate_topic("lwTopic", ""),
             "pl_avail": "connected",
             "pl_not_avail": "disconnected",
-            "~": self._generate_topic("baseTopic", "", full=True),
-        }
-        payload.update(values)
+        })
+
         self.mqtt_publish(topic, payload, allow_queueing=True)
 
     def _generate_device_config(
@@ -830,7 +871,7 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/switch/" + _node_id + "_CONNECT/config",
             values={
-                "name": _node_name + " Connect to printer",
+                "name": "Connect to printer",
                 "uniq_id": _node_id + "_CONNECT",
                 "cmd_t": "~" + self._generate_topic("controlTopic", "connect"),
                 "stat_t": self._generate_topic("hassTopic", "Connected", full=True),
@@ -853,7 +894,7 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/button/" + _node_id + "_STOP/config",
             values={
-                "name": _node_name + " Emergency Stop",
+                "name": "Emergency stop",
                 "uniq_id": _node_id + "_STOP",
                 "cmd_t": "~" + self._generate_topic("controlTopic", "stop"),
                 "device": _config_device,
@@ -871,12 +912,16 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/button/" + _node_id + "_CANCEL/config",
             values={
-                "name": _node_name + " Cancel Print",
+                "name": "Cancel print",
                 "uniq_id": _node_id + "_CANCEL",
                 "cmd_t": "~" + self._generate_topic("controlTopic", "cancel"),
-                "avty_t": "~" + self._generate_topic("hassTopic", "is_printing"),
-                "pl_avail": "True",
-                "pl_not_avail": "False",
+                "avty": [
+                    {
+                        "t": "~" + self._generate_topic("hassTopic", "is_printing"),
+                        "pl_avail": "True",
+                        "pl_not_avail": "False",
+                    },
+                ],
                 "device": _config_device,
                 "ic": "mdi:cancel",
             },
@@ -892,13 +937,17 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/switch/" + _node_id + "_PAUSE/config",
             values={
-                "name": _node_name + " Pause Print",
+                "name": "Pause print",
                 "uniq_id": _node_id + "_PAUSE",
                 "cmd_t": "~" + self._generate_topic("controlTopic", "pause"),
                 "stat_t": "~" + self._generate_topic("hassTopic", "is_paused"),
-                "avty_t": "~" + self._generate_topic("hassTopic", "is_printing"),
-                "pl_avail": "True",
-                "pl_not_avail": "False",
+                "avty": [
+                    {
+                        "t": "~" + self._generate_topic("hassTopic", "is_printing"),
+                        "pl_avail": "True",
+                        "pl_not_avail": "False",
+                    },
+                ],
                 "pl_off": "False",
                 "pl_on": "True",
                 "device": _config_device,
@@ -924,7 +973,7 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/button/" + _node_id + "_SHUTDOWN/config",
             values={
-                "name": _node_name + " Shutdown System",
+                "name": "Shutdown system",
                 "uniq_id": _node_id + "_SHUTDOWN",
                 "cmd_t": "~" + self._generate_topic("controlTopic", "shutdown"),
                 "device": _config_device,
@@ -935,7 +984,7 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/button/" + _node_id + "_REBOOT/config",
             values={
-                "name": _node_name + " Reboot System",
+                "name": "Reboot system",
                 "uniq_id": _node_id + "_REBOOT",
                 "cmd_t": "~" + self._generate_topic("controlTopic", "reboot"),
                 "device": _config_device,
@@ -946,7 +995,7 @@ class HomeassistantPlugin(
         self._generate_sensor(
             topic=_discovery_topic + "/button/" + _node_id + "_RESTART/config",
             values={
-                "name": _node_name + " Restart Server",
+                "name": "Restart server",
                 "uniq_id": _node_id + "_RESTART",
                 "cmd_t": "~" + self._generate_topic("controlTopic", "restart"),
                 "device": _config_device,
@@ -965,7 +1014,7 @@ class HomeassistantPlugin(
             self._generate_sensor(
                 topic=_discovery_topic + "/switch/" + _node_id + "_PSU/config",
                 values={
-                    "name": _node_name + " PSU",
+                    "name": "PSU",
                     "uniq_id": _node_id + "_PSU",
                     "cmd_t": "~" + self._generate_topic("controlTopic", "psu"),
                     "stat_t": "~" + self._generate_topic("hassTopic", "psu_on"),
@@ -990,7 +1039,7 @@ class HomeassistantPlugin(
                 + _node_id
                 + "_CAMERA_SNAPSHOT/config",
                 values={
-                    "name": _node_name + " Camera snapshot",
+                    "name": "Camera snapshot",
                     "uniq_id": _node_id + "_CAMERA_SNAPSHOT",
                     "cmd_t": "~"
                     + self._generate_topic("controlTopic", "camera_snapshot"),
