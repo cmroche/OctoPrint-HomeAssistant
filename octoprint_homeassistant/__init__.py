@@ -1034,7 +1034,7 @@ class HomeassistantPlugin(
 
             self._generate_sensor(
                 topic=_discovery_topic
-                + "/switch/"
+                + "/button/"
                 + _node_id
                 + "_CAMERA_SNAPSHOT/config",
                 values={
